@@ -226,11 +226,6 @@
       "flag": "🇵🇭"
     },
     {
-      "code": "en-US",
-      "name": "English (United States)",
-      "flag": "🇺🇸"
-    },
-    {
       "code": "en-SG",
       "name": "English (Singapore)",
       "flag": "🇸🇬"
@@ -249,6 +244,11 @@
       "code": "en-GB",
       "name": "English (United Kingdom)",
       "flag": "🇬🇧"
+    },
+    {
+      "code": "en-US",
+      "name": "English (United States)",
+      "flag": "🇺🇸"
     },
     {
       "code": "et-EE",
