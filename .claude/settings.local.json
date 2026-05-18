@@ -8,7 +8,11 @@
       "Bash(pkill *)",
       "Bash(npm list *)",
       "Bash(node *)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(git config *)",
+      "Bash(git remote *)",
+      "Bash(git add *)",
+      "Bash(git commit -m 'Complete text-to-speech app with MP3 generation *)"
     ]
   }
 }
