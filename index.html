@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text to Speech - Chuyển đổi văn bản thành giọng nói miễn phí</title>
+    <meta name="description" content="Công cụ chuyển đổi văn bản thành giọng nói miễn phí, hỗ trợ Google TTS và Microsoft Edge TTS. Tải file audio ngay lập tức.">
+    <meta name="keywords" content="text to speech, chuyển văn bản thành giọng nói, TTS, miễn phí, Google TTS, Edge TTS">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>🎤 Text to Speech</h1>
+            <p class="subtitle">Chuyển đổi văn bản thành giọng nói miễn phí với Google & Microsoft Edge</p>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <div class="tts-form">
+                <div class="input-section">
+                    <label for="text-input">📝 Nhập văn bản cần chuyển đổi:</label>
+                    <textarea
+                        id="text-input"
+                        placeholder="Nhập văn bản của bạn ở đây... Ví dụ: Xin chào, tôi là trợ lý ảo của bạn!"
+                        rows="6"
+                        maxlength="5000"
+                    ></textarea>
+                    <div class="char-count">
+                        <span id="char-count">0</span>/5000 ký tự
+                    </div>
+                </div>
+
+                <div class="settings-row">
+                    <div class="voice-section" id="voice-section">
+                        <label for="voice-select">🎭 Chọn ngôn ngữ:</label>
+                        <select id="voice-select">
+                            <option value="vi">Tiếng Việt (Vietnamese)</option>
+                            <option value="en">English (Tiếng Anh)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="speed-section">
+                    <label for="speed-range">⚡ Tốc độ đọc:</label>
+                    <div class="speed-control">
+                        <span>0.5x</span>
+                        <input type="range" id="speed-range" min="0.5" max="2" step="0.1" value="1">
+                        <span>2x</span>
+                        <span class="speed-value" id="speed-value">1.0x</span>
+                    </div>
+                </div>
+
+                <div class="action-section">
+                    <button id="generate-btn" type="button" disabled>
+                        <span class="btn-text">🎵 Tạo giọng nói</span>
+                        <span class="btn-loading" style="display: none;">
+                            <span class="spinner"></span>
+                            Đang xử lý...
+                        </span>
+                    </button>
+                </div>
+
+                <div class="result-section" id="result-section" style="display: none;">
+                    <div class="audio-controls">
+                        <h3>🎧 Kết quả:</h3>
+                        <div class="audio-player">
+                            <audio id="audio-player" controls preload="none">
+                                Trình duyệt của bạn không hỗ trợ audio player.
+                            </audio>
+                        </div>
+                        <button id="download-btn" type="button">
+                            📥 Tải xuống file MP3
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="features">
+                <h2>✨ Tính năng nổi bật</h2>
+                <div class="feature-grid">
+                    <div class="feature-item">
+                        <div class="feature-icon">🆓</div>
+                        <h3>Miễn phí hoàn toàn</h3>
+                        <p>Không cần đăng ký, không giới hạn sử dụng</p>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">🌍</div>
+                        <h3>Hai công cụ TTS hàng đầu</h3>
+                        <p>Google TTS và Microsoft Edge TTS chất lượng cao</p>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">⚡</div>
+                        <h3>Xử lý nhanh chóng</h3>
+                        <p>Chuyển đổi văn bản thành giọng nói trong vài giây</p>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">📱</div>
+                        <h3>Responsive Design</h3>
+                        <p>Hoạt động tốt trên mọi thiết bị di động</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="usage-guide">
+                <h2>📖 Hướng dẫn sử dụng</h2>
+                <ol>
+                    <li><strong>Nhập văn bản:</strong> Gõ hoặc paste văn bản vào ô text area</li>
+                    <li><strong>Chọn công cụ:</strong> Google TTS (nhanh) hoặc Edge TTS (chất lượng cao)</li>
+                    <li><strong>Chọn giọng nói:</strong> Nam/nữ và ngôn ngữ phù hợp</li>
+                    <li><strong>Điều chỉnh tốc độ:</strong> Từ 0.5x đến 2x theo ý muốn</li>
+                    <li><strong>Tạo và tải:</strong> Nhấn nút tạo, nghe và tải file về</li>
+                </ol>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2024 Text to Speech Tool. Made with ❤️ for everyone.</p>
+            <p>Hỗ trợ: Google TTS & Microsoft Edge TTS</p>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
