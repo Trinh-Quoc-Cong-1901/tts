@@ -22,7 +22,9 @@
       "Bash(grep -E \"\\\\.\\(js|json|md|env|css|html\\)$\")",
       "Bash(git rm *)",
       "Bash(git commit *)",
-      "Bash(git rebase *)"
+      "Bash(git rebase *)",
+      "Bash(git reset *)",
+      "Bash(git status *)"
     ]
   }
 }
