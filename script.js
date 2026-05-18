@@ -202,7 +202,7 @@ function filterVoices() {
         const matchesGender = activeGender === 'all' || voice.gender === activeGender;
         const matchesSearch = voice.name.toLowerCase().includes(searchTerm) ||
                             voice.country.toLowerCase().includes(searchTerm) ||
-                            voice.accent.toLowerCase().includes(searchTerm);
+                            voice.locale.toLowerCase().includes(searchTerm);
 
         return matchesGender && matchesSearch;
     });
@@ -231,7 +231,7 @@ function renderVoiceList() {
                 <div class="voice-details">
                     <span class="voice-gender ${voice.gender}">${voice.gender.charAt(0).toUpperCase() + voice.gender.slice(1)}</span>
                     <span>${voice.country}</span>
-                    <span>${voice.accent}</span>
+                    <span>${voice.locale}</span>
                 </div>
             </div>
             <button class="voice-preview" data-voice-id="${voice.id}">
