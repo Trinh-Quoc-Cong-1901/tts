@@ -6,7 +6,7 @@ class AzureTTS {
         this.subscriptionKey = subscriptionKey;
         this.region = region;
         this.tokenUrl = `https://${region}.api.cognitive.microsoft.com/sts/v1.0/issuetoken`;
-        this.ttsUrl = `https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`;
+        this.ttsUrl = `https://${region}.api.cognitive.microsoft.com/cognitiveservices/v1`;
         this.accessToken = null;
         this.tokenExpiry = null;
     }
