@@ -12,7 +12,11 @@
       "Bash(git config *)",
       "Bash(git remote *)",
       "Bash(git add *)",
-      "Bash(git commit -m 'Complete text-to-speech app with MP3 generation *)"
+      "Bash(git commit -m 'Complete text-to-speech app with MP3 generation *)",
+      "Bash(git push *)",
+      "Bash(ssh-keygen *)",
+      "Bash(ssh *)",
+      "Bash(git commit -m 'Complete professional TTS interface redesign *)"
     ]
   }
 }

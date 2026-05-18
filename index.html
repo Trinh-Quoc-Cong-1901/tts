@@ -1,127 +1,236 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Text to Speech - Chuyển đổi văn bản thành giọng nói miễn phí</title>
-    <meta name="description" content="Công cụ chuyển đổi văn bản thành giọng nói miễn phí, hỗ trợ Google TTS và Microsoft Edge TTS. Tải file audio ngay lập tức.">
-    <meta name="keywords" content="text to speech, chuyển văn bản thành giọng nói, TTS, miễn phí, Google TTS, Edge TTS">
+    <title>Free Text to Speech - A Speech service feature that converts text to lifelike speech</title>
+    <meta name="description" content="Free text-to-speech service with multiple languages and voices. Convert text to natural-sounding speech with male and female voice options.">
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body>
-    <header>
+<body class="light-mode">
+    <!-- Header -->
+    <header class="header">
         <div class="container">
-            <h1>🎤 Text to Speech</h1>
-            <p class="subtitle">Chuyển đổi văn bản thành giọng nói miễn phí với Google & Microsoft Edge</p>
+            <div class="header-content">
+                <!-- Logo -->
+                <div class="logo">
+                    <div class="logo-icon">
+                        <i class="fas fa-microphone-alt"></i>
+                    </div>
+                    <div class="logo-text">
+                        <h1>Free text to speech</h1>
+                        <p>A Speech service feature that converts text to lifelike speech</p>
+                    </div>
+                </div>
+
+                <!-- Navigation -->
+                <nav class="nav">
+                    <a href="#" class="nav-link active">Home</a>
+                    <a href="#" class="nav-link">Tutorial</a>
+                    <a href="#" class="nav-link">Donate</a>
+                    <a href="#" class="nav-link">Support</a>
+                </nav>
+
+                <!-- Controls -->
+                <div class="header-controls">
+                    <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                    <select id="ui-language" class="ui-language">
+                        <option value="en">English</option>
+                        <option value="vi">Tiếng Việt</option>
+                        <option value="es">Español</option>
+                        <option value="fr">Français</option>
+                        <option value="de">Deutsch</option>
+                    </select>
+                </div>
+            </div>
         </div>
     </header>
 
-    <main>
+    <!-- Main Content -->
+    <main class="main">
         <div class="container">
-            <div class="tts-form">
-                <div class="input-section">
-                    <label for="text-input">📝 Nhập văn bản cần chuyển đổi:</label>
-                    <textarea
-                        id="text-input"
-                        placeholder="Nhập văn bản của bạn ở đây... Ví dụ: Xin chào, tôi là trợ lý ảo của bạn!"
-                        rows="6"
-                        maxlength="5000"
-                    ></textarea>
-                    <div class="char-count">
-                        <span id="char-count">0</span>/5000 ký tự
-                    </div>
-                </div>
-
-                <div class="settings-row">
-                    <div class="voice-section" id="voice-section">
-                        <label for="voice-select">🎭 Chọn ngôn ngữ:</label>
-                        <select id="voice-select">
-                            <option value="vi">Tiếng Việt (Vietnamese)</option>
-                            <option value="en">English (Tiếng Anh)</option>
+            <div class="content-grid">
+                <!-- Sidebar -->
+                <aside class="sidebar">
+                    <!-- Voice Language -->
+                    <div class="control-group">
+                        <label for="voice-language" class="control-label">Voice Language</label>
+                        <select id="voice-language" class="control-select">
+                            <option value="en-US">English (United States)</option>
+                            <option value="en-GB">English (United Kingdom)</option>
+                            <option value="en-AU">English (Australia)</option>
+                            <option value="vi-VN">Tiếng Việt (Vietnam)</option>
+                            <option value="es-ES">Español (España)</option>
+                            <option value="es-MX">Español (México)</option>
+                            <option value="fr-FR">Français (France)</option>
+                            <option value="fr-CA">Français (Canada)</option>
+                            <option value="de-DE">Deutsch (Deutschland)</option>
+                            <option value="it-IT">Italiano (Italia)</option>
+                            <option value="pt-BR">Português (Brasil)</option>
+                            <option value="pt-PT">Português (Portugal)</option>
+                            <option value="ru-RU">Русский (Россия)</option>
+                            <option value="ja-JP">日本語 (日本)</option>
+                            <option value="ko-KR">한국어 (대한민국)</option>
+                            <option value="zh-CN">中文 (中国)</option>
+                            <option value="zh-TW">中文 (台灣)</option>
+                            <option value="ar-SA">العربية (السعودية)</option>
+                            <option value="hi-IN">हिन्दी (भारत)</option>
+                            <option value="th-TH">ไทย (ประเทศไทย)</option>
+                            <option value="nl-NL">Nederlands (Nederland)</option>
+                            <option value="sv-SE">Svenska (Sverige)</option>
+                            <option value="da-DK">Dansk (Danmark)</option>
+                            <option value="no-NO">Norsk (Norge)</option>
+                            <option value="fi-FI">Suomi (Suomi)</option>
+                            <option value="pl-PL">Polski (Polska)</option>
+                            <option value="cs-CZ">Čeština (Česká republika)</option>
+                            <option value="sk-SK">Slovenčina (Slovensko)</option>
+                            <option value="hu-HU">Magyar (Magyarország)</option>
+                            <option value="ro-RO">Română (România)</option>
+                            <option value="bg-BG">Български (България)</option>
+                            <option value="hr-HR">Hrvatski (Hrvatska)</option>
+                            <option value="sl-SI">Slovenščina (Slovenija)</option>
+                            <option value="et-EE">Eesti (Eesti)</option>
+                            <option value="lv-LV">Latviešu (Latvija)</option>
+                            <option value="lt-LT">Lietuvių (Lietuva)</option>
+                            <option value="mt-MT">Malti (Malta)</option>
+                            <option value="tr-TR">Türkçe (Türkiye)</option>
+                            <option value="he-IL">עברית (ישראל)</option>
+                            <option value="fa-IR">فارسی (ایران)</option>
+                            <option value="ur-PK">اردو (پاکستان)</option>
+                            <option value="bn-BD">বাংলা (বাংলাদেশ)</option>
+                            <option value="ta-IN">தமிழ் (இந்தியா)</option>
+                            <option value="te-IN">తెలుగు (భారతదేశం)</option>
+                            <option value="ml-IN">മലയാളം (ഇന്ത്യ)</option>
+                            <option value="kn-IN">ಕನ್ನಡ (ಭಾರತ)</option>
+                            <option value="gu-IN">ગુજરાતી (ભારત)</option>
+                            <option value="mr-IN">मराठी (भारत)</option>
+                            <option value="pa-IN">ਪੰਜਾਬੀ (ਭਾਰਤ)</option>
                         </select>
                     </div>
-                </div>
 
-                <div class="speed-section">
-                    <label for="speed-range">⚡ Tốc độ đọc:</label>
-                    <div class="speed-control">
-                        <span>0.5x</span>
-                        <input type="range" id="speed-range" min="0.5" max="2" step="0.1" value="1">
-                        <span>2x</span>
-                        <span class="speed-value" id="speed-value">1.0x</span>
-                    </div>
-                </div>
-
-                <div class="action-section">
-                    <button id="generate-btn" type="button" disabled>
-                        <span class="btn-text">🎵 Tạo giọng nói</span>
-                        <span class="btn-loading" style="display: none;">
-                            <span class="spinner"></span>
-                            Đang xử lý...
-                        </span>
-                    </button>
-                </div>
-
-                <div class="result-section" id="result-section" style="display: none;">
-                    <div class="audio-controls">
-                        <h3>🎧 Kết quả:</h3>
-                        <div class="audio-player">
-                            <audio id="audio-player" controls preload="none">
-                                Trình duyệt của bạn không hỗ trợ audio player.
-                            </audio>
+                    <!-- Gender Filter -->
+                    <div class="control-group">
+                        <label class="control-label">Gender</label>
+                        <div class="gender-buttons">
+                            <button class="gender-btn active" data-gender="all">All</button>
+                            <button class="gender-btn" data-gender="male">Male</button>
+                            <button class="gender-btn" data-gender="female">Female</button>
                         </div>
-                        <button id="download-btn" type="button">
-                            📥 Tải xuống file MP3
+                    </div>
+
+                    <!-- Voice Search -->
+                    <div class="control-group">
+                        <label for="voice-search" class="control-label">Voice Search</label>
+                        <input type="text" id="voice-search" class="voice-search" placeholder="Search by voice name">
+                    </div>
+
+                    <!-- Voice List -->
+                    <div class="voice-list" id="voice-list">
+                        <div class="voice-loading">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <span>Loading voices...</span>
+                        </div>
+                    </div>
+
+                    <!-- Speed Control -->
+                    <div class="control-group">
+                        <div class="slider-header">
+                            <label class="control-label">
+                                <i class="fas fa-tachometer-alt"></i>
+                                Speed
+                            </label>
+                            <span class="slider-value" id="speed-value">0%</span>
+                        </div>
+                        <input type="range" id="speed-range" class="control-slider" min="-50" max="50" value="0">
+                    </div>
+
+                    <!-- Pitch Control -->
+                    <div class="control-group">
+                        <div class="slider-header">
+                            <label class="control-label">
+                                <i class="fas fa-wave-square"></i>
+                                Pitch
+                            </label>
+                            <span class="slider-value" id="pitch-value">0%</span>
+                        </div>
+                        <input type="range" id="pitch-range" class="control-slider" min="-50" max="50" value="0">
+                    </div>
+
+                    <!-- Autoplay -->
+                    <div class="control-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="autoplay" checked>
+                            <span class="checkmark"></span>
+                            Autoplay after generation
+                        </label>
+                    </div>
+                </aside>
+
+                <!-- Main Content Area -->
+                <div class="main-content">
+                    <!-- Input Section -->
+                    <div class="input-section">
+                        <div class="input-header">
+                            <label for="text-input" class="input-label">Input Text</label>
+                            <div class="input-info">
+                                <span id="char-count" class="char-count">0 characters (0 lines)</span>
+                                <button id="import-file" class="import-btn">
+                                    <i class="fas fa-file-import"></i>
+                                    Import File
+                                </button>
+                            </div>
+                        </div>
+                        <textarea
+                            id="text-input"
+                            class="text-input"
+                            placeholder="Enter your text here..."
+                            maxlength="5000"
+                        ></textarea>
+                    </div>
+
+                    <!-- Error/Status Messages -->
+                    <div id="message-area" class="message-area hidden">
+                        <div class="message-content">
+                            <i class="message-icon"></i>
+                            <span class="message-text"></span>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="action-buttons">
+                        <button id="preview-btn" class="btn btn-secondary" disabled>
+                            <i class="fas fa-play"></i>
+                            Preview Audio
+                        </button>
+                        <button id="generate-btn" class="btn btn-primary" disabled>
+                            <i class="fas fa-bolt"></i>
+                            Generate Audio
                         </button>
                     </div>
-                </div>
-            </div>
 
-            <div class="features">
-                <h2>✨ Tính năng nổi bật</h2>
-                <div class="feature-grid">
-                    <div class="feature-item">
-                        <div class="feature-icon">🆓</div>
-                        <h3>Miễn phí hoàn toàn</h3>
-                        <p>Không cần đăng ký, không giới hạn sử dụng</p>
-                    </div>
-                    <div class="feature-item">
-                        <div class="feature-icon">🌍</div>
-                        <h3>Hai công cụ TTS hàng đầu</h3>
-                        <p>Google TTS và Microsoft Edge TTS chất lượng cao</p>
-                    </div>
-                    <div class="feature-item">
-                        <div class="feature-icon">⚡</div>
-                        <h3>Xử lý nhanh chóng</h3>
-                        <p>Chuyển đổi văn bản thành giọng nói trong vài giây</p>
-                    </div>
-                    <div class="feature-item">
-                        <div class="feature-icon">📱</div>
-                        <h3>Responsive Design</h3>
-                        <p>Hoạt động tốt trên mọi thiết bị di động</p>
+                    <!-- Results Section -->
+                    <div id="results-section" class="results-section hidden">
+                        <h3 class="results-title">Results</h3>
+                        <div class="audio-player-container">
+                            <audio id="audio-player" class="audio-player" controls preload="none">
+                                Your browser does not support the audio player.
+                            </audio>
+                            <button id="download-btn" class="btn btn-download">
+                                <i class="fas fa-download"></i>
+                                Download MP3
+                            </button>
+                        </div>
                     </div>
                 </div>
-            </div>
-
-            <div class="usage-guide">
-                <h2>📖 Hướng dẫn sử dụng</h2>
-                <ol>
-                    <li><strong>Nhập văn bản:</strong> Gõ hoặc paste văn bản vào ô text area</li>
-                    <li><strong>Chọn công cụ:</strong> Google TTS (nhanh) hoặc Edge TTS (chất lượng cao)</li>
-                    <li><strong>Chọn giọng nói:</strong> Nam/nữ và ngôn ngữ phù hợp</li>
-                    <li><strong>Điều chỉnh tốc độ:</strong> Từ 0.5x đến 2x theo ý muốn</li>
-                    <li><strong>Tạo và tải:</strong> Nhấn nút tạo, nghe và tải file về</li>
-                </ol>
             </div>
         </div>
     </main>
 
-    <footer>
-        <div class="container">
-            <p>&copy; 2024 Text to Speech Tool. Made with ❤️ for everyone.</p>
-            <p>Hỗ trợ: Google TTS & Microsoft Edge TTS</p>
-        </div>
-    </footer>
+    <!-- Hidden file input for import -->
+    <input type="file" id="file-input" accept=".txt,.doc,.docx" style="display: none;">
 
     <script src="script.js"></script>
 </body>
