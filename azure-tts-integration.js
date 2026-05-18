@@ -6,7 +6,7 @@ class AzureTTS {
         this.subscriptionKey = subscriptionKey;
         this.region = region;
         this.tokenUrl = `https://${region}.api.cognitive.microsoft.com/sts/v1.0/issuetoken`;
-        this.ttsUrl = `https://${region}.api.cognitive.microsoft.com/cognitiveservices/v1`;
+        this.ttsUrl = `https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`;
         this.accessToken = null;
         this.tokenExpiry = null;
     }
@@ -42,8 +42,12 @@ class AzureTTS {
         const speedValue = speed >= 0 ? `+${speed}%` : `${speed}%`;
         const pitchValue = pitch >= 0 ? `+${pitch}%` : `${pitch}%`;
 
+        // Extract language code from voiceId (e.g., "vi-VN-HoaiMyNeural" -> "vi-VN")
+        const languageMatch = voiceId.match(/^([a-z]{2}-[A-Z]{2})/);
+        const xmlLang = languageMatch ? languageMatch[1] : 'en-US';
+
         const ssml = `
-            <speak version='1.0' xml:lang='en-US'>
+            <speak version='1.0' xml:lang='${xmlLang}'>
                 <voice name='${voiceId}'>
                     <prosody rate='${speedValue}' pitch='${pitchValue}'>
                         ${text}
