@@ -1,17 +1,17 @@
 {
   "name": "text-to-speech-app",
   "version": "1.0.0",
-  "description": "Free Text to Speech application with Google and Edge TTS",
+  "description": "Free Text to Speech application with Azure and Google TTS",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js"
   },
   "dependencies": {
+    "axios": "^1.16.1",
     "cors": "^2.8.5",
-    "edge-tts": "^1.0.1",
+    "dotenv": "^17.4.2",
     "express": "^4.18.2",
-    "multer": "^1.4.5-lts.1",
     "node-gtts": "^2.0.2"
   },
   "devDependencies": {

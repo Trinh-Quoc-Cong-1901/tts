@@ -3,6 +3,25 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const gtts = require('node-gtts');
+const AzureTTS = require('./azure-tts-integration');
+
+// Load environment variables
+require('dotenv').config();
+
+// Load processed Azure voices data
+const voicesData = JSON.parse(fs.readFileSync(path.join(__dirname, 'processed-voices.json'), 'utf8'));
+
+// Initialize Azure TTS if credentials are provided
+let azureTTS = null;
+if (process.env.AZURE_TTS_SUBSCRIPTION_KEY && process.env.USE_AZURE_TTS === 'true') {
+    azureTTS = new AzureTTS(
+        process.env.AZURE_TTS_SUBSCRIPTION_KEY,
+        process.env.AZURE_TTS_REGION || 'eastus'
+    );
+    console.log('✅ Azure TTS initialized');
+} else {
+    console.log('ℹ️  Using Google TTS (node-gtts) - Add Azure credentials for real Azure voices');
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -54,26 +73,17 @@ app.post('/api/tts/generate', async (req, res) => {
             fs.mkdirSync(tempDir, { recursive: true });
         }
 
-        // Extract base language code for gTTS
-        const langCode = extractLanguageCode(language);
+        console.log(`Generating TTS: ${language}, Voice: ${voiceName}, Text length: ${text.length}`);
 
-        console.log(`Generating TTS: ${langCode}, Voice: ${voiceName}, Text length: ${text.length}`);
-
-        // Create gTTS instance
-        const gTTSInstance = gtts(langCode);
-
-        // Generate speech
-        gTTSInstance.save(outputPath, text, function() {
-            if (!fs.existsSync(outputPath)) {
-                return res.status(500).json({
-                    success: false,
-                    message: 'Audio file not generated'
-                });
-            }
-
+        if (azureTTS && voice) {
+            // Use Azure TTS with real voice
             try {
-                // Read the file and send as base64
-                const audioBuffer = fs.readFileSync(outputPath);
+                console.log(`Using Azure TTS with voice: ${voice}`);
+                const audioBuffer = await azureTTS.generateSpeech(text, voice, speed, pitch);
+
+                // Save to temp file
+                fs.writeFileSync(outputPath, audioBuffer);
+
                 const audioBase64 = audioBuffer.toString('base64');
 
                 // Generate filename
@@ -103,17 +113,82 @@ app.post('/api/tts/generate', async (req, res) => {
                         speed,
                         pitch,
                         isPreview
-                    }
+                    },
+                    engine: 'Azure TTS'
                 });
 
-            } catch (readError) {
-                console.error('Error reading audio file:', readError);
-                res.status(500).json({
-                    success: false,
-                    message: 'Error processing audio file'
-                });
+            } catch (azureError) {
+                console.error('Azure TTS Error:', azureError);
+                // Fall back to Google TTS
+                await generateWithGoogleTTS();
             }
-        });
+        } else {
+            // Use Google TTS as fallback
+            await generateWithGoogleTTS();
+        }
+
+        async function generateWithGoogleTTS() {
+            // Extract base language code for gTTS
+            const langCode = extractLanguageCode(language);
+            console.log(`Using Google TTS fallback with language: ${langCode}`);
+
+            // Create gTTS instance
+            const gTTSInstance = gtts(langCode);
+
+            // Generate speech
+            gTTSInstance.save(outputPath, text, function() {
+                if (!fs.existsSync(outputPath)) {
+                    return res.status(500).json({
+                        success: false,
+                        message: 'Audio file not generated'
+                    });
+                }
+
+                try {
+                    // Read the file and send as base64
+                    const audioBuffer = fs.readFileSync(outputPath);
+                    const audioBase64 = audioBuffer.toString('base64');
+
+                    // Generate filename
+                    const filename = isPreview
+                        ? `preview_${voiceName}_${timestamp}.mp3`
+                        : `tts_${voiceName}_${timestamp}.mp3`;
+
+                    // Clean up temp file after a delay
+                    setTimeout(() => {
+                        if (fs.existsSync(outputPath)) {
+                            fs.unlinkSync(outputPath);
+                        }
+                    }, 30000);
+
+                    res.json({
+                        success: true,
+                        audio: audioBase64,
+                        contentType: 'audio/mpeg',
+                        filename,
+                        voiceUsed: {
+                            id: voice,
+                            name: voiceName,
+                            language,
+                            gender
+                        },
+                        settings: {
+                            speed,
+                            pitch,
+                            isPreview
+                        },
+                        engine: 'Google TTS (Fallback)'
+                    });
+
+                } catch (readError) {
+                    console.error('Error reading audio file:', readError);
+                    res.status(500).json({
+                        success: false,
+                        message: 'Error processing audio file'
+                    });
+                }
+            });
+        }
 
     } catch (error) {
         console.error('TTS Generation Error:', error);
@@ -197,101 +272,15 @@ app.get('/api/voices/:language', (req, res) => {
 
 // Get all supported languages
 app.get('/api/languages', (req, res) => {
-    const languages = [
-        { code: 'en-US', name: 'English (United States)', flag: '🇺🇸' },
-        { code: 'en-GB', name: 'English (United Kingdom)', flag: '🇬🇧' },
-        { code: 'en-AU', name: 'English (Australia)', flag: '🇦🇺' },
-        { code: 'vi-VN', name: 'Tiếng Việt (Vietnam)', flag: '🇻🇳' },
-        { code: 'es-ES', name: 'Español (España)', flag: '🇪🇸' },
-        { code: 'es-MX', name: 'Español (México)', flag: '🇲🇽' },
-        { code: 'fr-FR', name: 'Français (France)', flag: '🇫🇷' },
-        { code: 'de-DE', name: 'Deutsch (Deutschland)', flag: '🇩🇪' },
-        { code: 'it-IT', name: 'Italiano (Italia)', flag: '🇮🇹' },
-        { code: 'pt-BR', name: 'Português (Brasil)', flag: '🇧🇷' },
-        { code: 'ru-RU', name: 'Русский (Россия)', flag: '🇷🇺' },
-        { code: 'ja-JP', name: '日本語 (日本)', flag: '🇯🇵' },
-        { code: 'ko-KR', name: '한국어 (대한민국)', flag: '🇰🇷' },
-        { code: 'zh-CN', name: '中文 (中国)', flag: '🇨🇳' },
-        { code: 'ar-SA', name: 'العربية (السعودية)', flag: '🇸🇦' },
-        { code: 'hi-IN', name: 'हिन्दी (भारत)', flag: '🇮🇳' }
-    ];
-
     res.json({
         success: true,
-        languages
+        languages: voicesData.languages
     });
 });
 
 // Helper function to get voices for a language
 function getVoicesForLanguage(language) {
-    const voiceDatabase = {
-        'en-US': [
-            { id: 'en-US-1', name: 'Abigail', gender: 'female', country: 'US', accent: 'General American' },
-            { id: 'en-US-2', name: 'Ana', gender: 'female', country: 'US', accent: 'General American' },
-            { id: 'en-US-3', name: 'Andrew', gender: 'male', country: 'US', accent: 'General American' },
-            { id: 'en-US-4', name: 'Aria', gender: 'female', country: 'US', accent: 'General American' },
-            { id: 'en-US-5', name: 'Davis', gender: 'male', country: 'US', accent: 'General American' },
-            { id: 'en-US-6', name: 'Emma', gender: 'female', country: 'US', accent: 'General American' },
-            { id: 'en-US-7', name: 'Jenny', gender: 'female', country: 'US', accent: 'General American' },
-            { id: 'en-US-8', name: 'Guy', gender: 'male', country: 'US', accent: 'General American' }
-        ],
-        'en-GB': [
-            { id: 'en-GB-1', name: 'Libby', gender: 'female', country: 'GB', accent: 'British' },
-            { id: 'en-GB-2', name: 'Ryan', gender: 'male', country: 'GB', accent: 'British' },
-            { id: 'en-GB-3', name: 'Sonia', gender: 'female', country: 'GB', accent: 'British' }
-        ],
-        'vi-VN': [
-            { id: 'vi-VN-1', name: 'Hoài My', gender: 'female', country: 'VN', accent: 'Northern' },
-            { id: 'vi-VN-2', name: 'Nam Minh', gender: 'male', country: 'VN', accent: 'Northern' },
-            { id: 'vi-VN-3', name: 'Thu Minh', gender: 'female', country: 'VN', accent: 'Southern' }
-        ],
-        'es-ES': [
-            { id: 'es-ES-1', name: 'Elvira', gender: 'female', country: 'ES', accent: 'Castilian' },
-            { id: 'es-ES-2', name: 'Saul', gender: 'male', country: 'ES', accent: 'Castilian' }
-        ],
-        'fr-FR': [
-            { id: 'fr-FR-1', name: 'Denise', gender: 'female', country: 'FR', accent: 'Parisian' },
-            { id: 'fr-FR-2', name: 'Henri', gender: 'male', country: 'FR', accent: 'Parisian' }
-        ],
-        'de-DE': [
-            { id: 'de-DE-1', name: 'Amala', gender: 'female', country: 'DE', accent: 'Standard German' },
-            { id: 'de-DE-2', name: 'Conrad', gender: 'male', country: 'DE', accent: 'Standard German' }
-        ],
-        'it-IT': [
-            { id: 'it-IT-1', name: 'Elsa', gender: 'female', country: 'IT', accent: 'Standard Italian' },
-            { id: 'it-IT-2', name: 'Diego', gender: 'male', country: 'IT', accent: 'Standard Italian' }
-        ],
-        'pt-BR': [
-            { id: 'pt-BR-1', name: 'Francisca', gender: 'female', country: 'BR', accent: 'Brazilian' },
-            { id: 'pt-BR-2', name: 'Antonio', gender: 'male', country: 'BR', accent: 'Brazilian' }
-        ],
-        'ru-RU': [
-            { id: 'ru-RU-1', name: 'Svetlana', gender: 'female', country: 'RU', accent: 'Moscow' },
-            { id: 'ru-RU-2', name: 'Dmitry', gender: 'male', country: 'RU', accent: 'Moscow' }
-        ],
-        'ja-JP': [
-            { id: 'ja-JP-1', name: 'Ayumi', gender: 'female', country: 'JP', accent: 'Tokyo' },
-            { id: 'ja-JP-2', name: 'Kei', gender: 'male', country: 'JP', accent: 'Tokyo' }
-        ],
-        'ko-KR': [
-            { id: 'ko-KR-1', name: 'Sun-Hi', gender: 'female', country: 'KR', accent: 'Seoul' },
-            { id: 'ko-KR-2', name: 'InJoon', gender: 'male', country: 'KR', accent: 'Seoul' }
-        ],
-        'zh-CN': [
-            { id: 'zh-CN-1', name: 'Xiaoxiao', gender: 'female', country: 'CN', accent: 'Mandarin' },
-            { id: 'zh-CN-2', name: 'Yunxi', gender: 'male', country: 'CN', accent: 'Mandarin' }
-        ],
-        'ar-SA': [
-            { id: 'ar-SA-1', name: 'Zariyah', gender: 'female', country: 'SA', accent: 'Saudi' },
-            { id: 'ar-SA-2', name: 'Hamed', gender: 'male', country: 'SA', accent: 'Saudi' }
-        ],
-        'hi-IN': [
-            { id: 'hi-IN-1', name: 'Swara', gender: 'female', country: 'IN', accent: 'Hindi' },
-            { id: 'hi-IN-2', name: 'Madhur', gender: 'male', country: 'IN', accent: 'Hindi' }
-        ]
-    };
-
-    return voiceDatabase[language] || [];
+    return voicesData.voiceDatabase[language] || [];
 }
 
 // Health check

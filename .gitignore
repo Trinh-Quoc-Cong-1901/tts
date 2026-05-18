@@ -1,0 +1,24 @@
+# Environment variables (contains API keys)
+.env
+.env.local
+.env.production
+.env.staging
+
+# Node modules
+node_modules/
+
+# Temporary files
+temp/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+
+# Build files
+dist/
+build/

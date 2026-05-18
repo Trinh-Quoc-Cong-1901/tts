@@ -41,96 +41,8 @@ const elements = {
     downloadBtn: document.getElementById('download-btn')
 };
 
-// Voice Database - Expanded with more languages and voices
-const VOICE_DATABASE = {
-    'en-US': [
-        { id: 'en-US-1', name: 'Abigail', gender: 'female', country: 'US', accent: 'General American' },
-        { id: 'en-US-2', name: 'Ana', gender: 'female', country: 'US', accent: 'General American' },
-        { id: 'en-US-3', name: 'Andrew', gender: 'male', country: 'US', accent: 'General American' },
-        { id: 'en-US-4', name: 'Aria', gender: 'female', country: 'US', accent: 'General American' },
-        { id: 'en-US-5', name: 'Davis', gender: 'male', country: 'US', accent: 'General American' },
-        { id: 'en-US-6', name: 'Emma', gender: 'female', country: 'US', accent: 'General American' },
-        { id: 'en-US-7', name: 'Jenny', gender: 'female', country: 'US', accent: 'General American' },
-        { id: 'en-US-8', name: 'Guy', gender: 'male', country: 'US', accent: 'General American' },
-        { id: 'en-US-9', name: 'Jane', gender: 'female', country: 'US', accent: 'General American' },
-        { id: 'en-US-10', name: 'Jason', gender: 'male', country: 'US', accent: 'General American' }
-    ],
-    'en-GB': [
-        { id: 'en-GB-1', name: 'Libby', gender: 'female', country: 'GB', accent: 'British' },
-        { id: 'en-GB-2', name: 'Maisie', gender: 'female', country: 'GB', accent: 'British' },
-        { id: 'en-GB-3', name: 'Ryan', gender: 'male', country: 'GB', accent: 'British' },
-        { id: 'en-GB-4', name: 'Sonia', gender: 'female', country: 'GB', accent: 'British' },
-        { id: 'en-GB-5', name: 'Thomas', gender: 'male', country: 'GB', accent: 'British' }
-    ],
-    'en-AU': [
-        { id: 'en-AU-1', name: 'Natasha', gender: 'female', country: 'AU', accent: 'Australian' },
-        { id: 'en-AU-2', name: 'William', gender: 'male', country: 'AU', accent: 'Australian' },
-        { id: 'en-AU-3', name: 'Olivia', gender: 'female', country: 'AU', accent: 'Australian' }
-    ],
-    'vi-VN': [
-        { id: 'vi-VN-1', name: 'Hoài My', gender: 'female', country: 'VN', accent: 'Northern' },
-        { id: 'vi-VN-2', name: 'Nam Minh', gender: 'male', country: 'VN', accent: 'Northern' },
-        { id: 'vi-VN-3', name: 'Thu Minh', gender: 'female', country: 'VN', accent: 'Southern' },
-        { id: 'vi-VN-4', name: 'Minh Khang', gender: 'male', country: 'VN', accent: 'Southern' }
-    ],
-    'es-ES': [
-        { id: 'es-ES-1', name: 'Elvira', gender: 'female', country: 'ES', accent: 'Castilian' },
-        { id: 'es-ES-2', name: 'Saul', gender: 'male', country: 'ES', accent: 'Castilian' },
-        { id: 'es-ES-3', name: 'Triana', gender: 'female', country: 'ES', accent: 'Castilian' }
-    ],
-    'es-MX': [
-        { id: 'es-MX-1', name: 'Dalia', gender: 'female', country: 'MX', accent: 'Mexican' },
-        { id: 'es-MX-2', name: 'Jorge', gender: 'male', country: 'MX', accent: 'Mexican' },
-        { id: 'es-MX-3', name: 'Larissa', gender: 'female', country: 'MX', accent: 'Mexican' }
-    ],
-    'fr-FR': [
-        { id: 'fr-FR-1', name: 'Denise', gender: 'female', country: 'FR', accent: 'Parisian' },
-        { id: 'fr-FR-2', name: 'Henri', gender: 'male', country: 'FR', accent: 'Parisian' },
-        { id: 'fr-FR-3', name: 'Jacqueline', gender: 'female', country: 'FR', accent: 'Parisian' }
-    ],
-    'de-DE': [
-        { id: 'de-DE-1', name: 'Amala', gender: 'female', country: 'DE', accent: 'Standard German' },
-        { id: 'de-DE-2', name: 'Conrad', gender: 'male', country: 'DE', accent: 'Standard German' },
-        { id: 'de-DE-3', name: 'Katja', gender: 'female', country: 'DE', accent: 'Standard German' }
-    ],
-    'it-IT': [
-        { id: 'it-IT-1', name: 'Elsa', gender: 'female', country: 'IT', accent: 'Standard Italian' },
-        { id: 'it-IT-2', name: 'Isabella', gender: 'female', country: 'IT', accent: 'Standard Italian' },
-        { id: 'it-IT-3', name: 'Diego', gender: 'male', country: 'IT', accent: 'Standard Italian' }
-    ],
-    'pt-BR': [
-        { id: 'pt-BR-1', name: 'Francisca', gender: 'female', country: 'BR', accent: 'Brazilian' },
-        { id: 'pt-BR-2', name: 'Antonio', gender: 'male', country: 'BR', accent: 'Brazilian' },
-        { id: 'pt-BR-3', name: 'Brenda', gender: 'female', country: 'BR', accent: 'Brazilian' }
-    ],
-    'ru-RU': [
-        { id: 'ru-RU-1', name: 'Svetlana', gender: 'female', country: 'RU', accent: 'Moscow' },
-        { id: 'ru-RU-2', name: 'Dmitry', gender: 'male', country: 'RU', accent: 'Moscow' }
-    ],
-    'ja-JP': [
-        { id: 'ja-JP-1', name: 'Ayumi', gender: 'female', country: 'JP', accent: 'Tokyo' },
-        { id: 'ja-JP-2', name: 'Ichiro', gender: 'male', country: 'JP', accent: 'Tokyo' },
-        { id: 'ja-JP-3', name: 'Kei', gender: 'male', country: 'JP', accent: 'Tokyo' }
-    ],
-    'ko-KR': [
-        { id: 'ko-KR-1', name: 'Sun-Hi', gender: 'female', country: 'KR', accent: 'Seoul' },
-        { id: 'ko-KR-2', name: 'InJoon', gender: 'male', country: 'KR', accent: 'Seoul' }
-    ],
-    'zh-CN': [
-        { id: 'zh-CN-1', name: 'Xiaoxiao', gender: 'female', country: 'CN', accent: 'Mandarin' },
-        { id: 'zh-CN-2', name: 'Yunxi', gender: 'male', country: 'CN', accent: 'Mandarin' },
-        { id: 'zh-CN-3', name: 'Xiaoyi', gender: 'female', country: 'CN', accent: 'Mandarin' }
-    ],
-    'ar-SA': [
-        { id: 'ar-SA-1', name: 'Zariyah', gender: 'female', country: 'SA', accent: 'Saudi' },
-        { id: 'ar-SA-2', name: 'Hamed', gender: 'male', country: 'SA', accent: 'Saudi' }
-    ],
-    'hi-IN': [
-        { id: 'hi-IN-1', name: 'Swara', gender: 'female', country: 'IN', accent: 'Hindi' },
-        { id: 'hi-IN-2', name: 'Madhur', gender: 'male', country: 'IN', accent: 'Hindi' }
-    ]
-    // Add more languages as needed...
-};
+// Voice cache to avoid repeated API calls
+const VOICE_CACHE = {};
 
 // Initialize Application
 document.addEventListener('DOMContentLoaded', () => {
@@ -204,18 +116,54 @@ function applyTheme() {
 }
 
 // Voice Management
-function loadVoicesForLanguage() {
+async function loadVoicesForLanguage() {
     const selectedLanguage = elements.voiceLanguage.value;
-    state.currentVoices = VOICE_DATABASE[selectedLanguage] || [];
-    state.filteredVoices = [...state.currentVoices];
-    state.selectedVoice = null;
 
-    // Reset filters
-    resetFilters();
+    // Show loading state
+    elements.voiceList.innerHTML = `
+        <div class="voice-loading">
+            <i class="fas fa-spinner fa-spin"></i>
+            <span>Loading voices...</span>
+        </div>
+    `;
 
-    // Render voices
-    renderVoiceList();
-    updateButtonStates();
+    try {
+        // Check cache first
+        if (VOICE_CACHE[selectedLanguage]) {
+            state.currentVoices = VOICE_CACHE[selectedLanguage];
+        } else {
+            // Fetch voices from server API
+            const response = await fetch(`/api/voices/${selectedLanguage}`);
+            const data = await response.json();
+
+            if (data.success) {
+                state.currentVoices = data.voices || [];
+                // Cache the result
+                VOICE_CACHE[selectedLanguage] = state.currentVoices;
+            } else {
+                throw new Error(data.message || 'Failed to load voices');
+            }
+        }
+
+        state.filteredVoices = [...state.currentVoices];
+        state.selectedVoice = null;
+
+        // Reset filters
+        resetFilters();
+
+        // Render voices
+        renderVoiceList();
+        updateButtonStates();
+
+    } catch (error) {
+        console.error('Error loading voices:', error);
+        elements.voiceList.innerHTML = `
+            <div class="voice-error">
+                <i class="fas fa-exclamation-circle"></i>
+                <span>Error loading voices: ${error.message}</span>
+            </div>
+        `;
+    }
 }
 
 function resetFilters() {
@@ -645,7 +593,6 @@ function base64ToBlob(base64, type) {
 function handleUILanguageChange() {
     // UI language change implementation
     // This would typically update all UI text based on selected language
-    console.log('UI Language changed to:', elements.uiLanguage.value);
 }
 
 // Preferences Management

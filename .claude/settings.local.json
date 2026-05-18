@@ -16,7 +16,13 @@
       "Bash(git push *)",
       "Bash(ssh-keygen *)",
       "Bash(ssh *)",
-      "Bash(git commit -m 'Complete professional TTS interface redesign *)"
+      "Bash(git commit -m 'Complete professional TTS interface redesign *)",
+      "WebFetch(domain:www.text-to-speech.online)",
+      "Bash(open *)",
+      "Bash(grep -E \"\\\\.\\(js|json|md|env|css|html\\)$\")",
+      "Bash(git rm *)",
+      "Bash(git commit *)",
+      "Bash(git rebase *)"
     ]
   }
 }
