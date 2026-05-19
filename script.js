@@ -1,3 +1,16 @@
+// Import Firebase Analytics
+import {
+    trackPageView,
+    trackVoiceGeneration,
+    trackVoicePreview,
+    trackAudioDownload,
+    trackLanguageSwitch,
+    trackThemeToggle,
+    trackFileImport,
+    trackVoiceSearch,
+    trackMobileMenuToggle
+} from '/firebase-analytics.js';
+
 // Global state
 const state = {
     currentVoices: [],
@@ -56,6 +69,11 @@ document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
     setLanguageFromURL();
     loadVoicesForLanguage();
+
+    // Track page view
+    const currentPath = window.location.pathname;
+    const language = currentPath.match(/^\/([a-z]{2})\//) ? currentPath.match(/^\/([a-z]{2})\//)[1] : 'en';
+    trackPageView(`Text to Speech ${language.toUpperCase()}`, language);
 });
 
 function initializeApp() {
@@ -118,6 +136,9 @@ function toggleTheme() {
     applyTheme();
     syncMobileThemeToggle();
     savePreferences();
+
+    // Track theme toggle
+    trackThemeToggle(state.isDarkMode ? 'dark' : 'light');
 }
 
 function applyTheme() {
@@ -570,6 +591,13 @@ async function handlePreview() {
 
     const previewText = text.length > 200 ? text.substring(0, 200) + '...' : text;
 
+    // Track voice preview
+    trackVoicePreview(
+        elements.voiceLanguage.value,
+        state.selectedVoice.name,
+        state.selectedVoice.gender
+    );
+
     setGeneratingState(true);
     hideMessage();
 
@@ -592,6 +620,14 @@ async function handlePreview() {
 async function handleGenerate() {
     const text = elements.textInput.value.trim();
     if (!text || !state.selectedVoice) return;
+
+    // Track voice generation
+    trackVoiceGeneration(
+        elements.voiceLanguage.value,
+        state.selectedVoice.name,
+        state.selectedVoice.gender,
+        text.length
+    );
 
     setGeneratingState(true);
     hideMessage();
@@ -722,6 +758,9 @@ function handleDownload() {
     downloadLink.click();
     document.body.removeChild(downloadLink);
 
+    // Track audio download
+    trackAudioDownload('mp3', voiceName, elements.voiceLanguage.value);
+
     showMessage('success', `Downloaded: ${filename}`);
     setTimeout(hideMessage, 3000);
 }
@@ -740,6 +779,9 @@ function handleUILanguageChange() {
     const selectedLanguage = elements.uiLanguage.value;
     const currentPath = window.location.pathname;
 
+    // Get current language for tracking
+    const currentLanguage = currentPath.match(/^\/([a-z]{2})\//) ? currentPath.match(/^\/([a-z]{2})\//)[1] : 'en';
+
     // Save language preference
     savePreferences();
 
@@ -756,6 +798,9 @@ function handleUILanguageChange() {
 
     // Only redirect if we're not already on the correct page
     if (currentPath !== newUrl) {
+        // Track language switch
+        trackLanguageSwitch(currentLanguage, selectedLanguage);
+
         console.log(`🌍 Switching language to ${selectedLanguage}: ${newUrl}`);
         window.location.href = newUrl;
     }
@@ -803,6 +848,9 @@ function openMobileMenu() {
 
     // Prevent body scroll when menu is open
     document.body.style.overflow = 'hidden';
+
+    // Track mobile menu open
+    trackMobileMenuToggle('open');
 }
 
 function closeMobileMenu() {
@@ -811,6 +859,9 @@ function closeMobileMenu() {
 
     // Restore body scroll
     document.body.style.overflow = '';
+
+    // Track mobile menu close
+    trackMobileMenuToggle('close');
 }
 
 function syncMobileThemeToggle() {
