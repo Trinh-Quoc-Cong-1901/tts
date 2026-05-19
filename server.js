@@ -11,6 +11,34 @@ require('dotenv').config();
 // Load processed Azure voices data
 const voicesData = JSON.parse(fs.readFileSync(path.join(__dirname, 'processed-voices.json'), 'utf8'));
 
+// Load SEO content for all languages
+const seoContent = {};
+const supportedLanguages = ['en', 'vi', 'ko', 'es', 'fr', 'de', 'ja', 'zh', 'ar', 'hi', 'ru', 'pt'];
+
+// Load all language files
+supportedLanguages.forEach(lang => {
+    try {
+        const filePath = path.join(__dirname, 'text-to-speech', `${lang}.json`);
+        if (fs.existsSync(filePath)) {
+            seoContent[lang] = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+            console.log(`📝 Loaded SEO content for: ${lang}`);
+        }
+    } catch (error) {
+        console.warn(`⚠️  Failed to load ${lang}.json:`, error.message);
+    }
+});
+
+// Fallback to English if language not found
+function getSEOContent(language) {
+    return seoContent[language] || seoContent['en'] || {
+        seo: {
+            title: "Free Text to Speech Online - AI Voice Generator",
+            description: "Convert text to speech online free with AI voices."
+        },
+        content: { form: { h1: "Text to Speech", placeholder: "Enter text...", button: "Generate" }, sections: [] }
+    };
+}
+
 // Initialize Azure TTS if credentials are provided
 let azureTTS = null;
 if (process.env.AZURE_TTS_SUBSCRIPTION_KEY && process.env.USE_AZURE_TTS === 'true') {
@@ -29,11 +57,110 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
-app.use(express.static('.'));
+// Serve static files but exclude index.html to allow custom rendering
+app.use(express.static('.', { index: false }));
 
-// Serve static files
+// Function to generate SEO HTML content
+function generateSEOHTML(sections) {
+    if (!sections || sections.length === 0) return '';
+
+    return sections.map(section => {
+        let html = `<section class="seo-section">`;
+
+        if (section.h2) {
+            html += `<h2>${section.h2}</h2>`;
+        }
+
+        if (section.p) {
+            section.p.forEach(paragraph => {
+                html += `<p>${paragraph}</p>`;
+            });
+        }
+
+        if (section.ul) {
+            html += '<ul>';
+            section.ul.forEach(item => {
+                html += '<li>';
+                if (item.h3) html += `<h3>${item.h3}</h3>`;
+                if (item.p) item.p.forEach(p => html += `<p>${p}</p>`);
+                html += '</li>';
+            });
+            html += '</ul>';
+        }
+
+        if (section.ol) {
+            html += '<ol>';
+            section.ol.forEach(item => {
+                html += '<li>';
+                if (item.h3) html += `<h3>${item.h3}</h3>`;
+                if (item.p) item.p.forEach(p => html += `<p>${p}</p>`);
+                html += '</li>';
+            });
+            html += '</ol>';
+        }
+
+        html += '</section>';
+        return html;
+    }).join('');
+}
+
+// Function to render HTML with SEO content
+function renderHTMLWithSEO(language = 'en') {
+    const content = getSEOContent(language);
+    const baseHTML = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
+
+    // Generate SEO content HTML
+    const seoHTML = `
+    <div id="seo-content" class="seo-content">
+        ${generateSEOHTML(content.content.sections)}
+    </div>`;
+
+    // Replace title and meta tags
+    let finalHTML = baseHTML
+        .replace(/<title>.*?<\/title>/, `<title>${content.seo.title}</title>`)
+        .replace(/name="description" content=".*?"/, `name="description" content="${content.seo.description}"`)
+        .replace(/property="og:title" content=".*?"/, `property="og:title" content="${content.seo.ogTitle || content.seo.title}"`)
+        .replace(/property="og:description" content=".*?"/, `property="og:description" content="${content.seo.ogDescription || content.seo.description}"`);
+
+    // Add hreflang links
+    const hreflangLinks = supportedLanguages.map(lang => {
+        const url = lang === 'en' ? 'https://text-to-speech.space/' : `https://text-to-speech.space/${lang}/`;
+        return `<link rel="alternate" hreflang="${lang}" href="${url}">`;
+    }).join('\n    ');
+
+    finalHTML = finalHTML.replace('</head>', `    ${hreflangLinks}\n</head>`);
+
+    // Update form elements with translated text
+    if (content.content.form.h1) {
+        finalHTML = finalHTML.replace(/<h1>Free text to speech<\/h1>/, `<h1>${content.content.form.h1}</h1>`);
+    }
+
+    if (content.content.form.placeholder) {
+        finalHTML = finalHTML.replace(/placeholder="Enter your text here..."/, `placeholder="${content.content.form.placeholder}"`);
+    }
+
+    // Insert SEO content before closing </main> tag
+    finalHTML = finalHTML.replace('</main>', `${seoHTML}\n</main>`);
+
+    return finalHTML;
+}
+
+// Multi-language routes
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    const html = renderHTMLWithSEO('en');
+    res.send(html);
+});
+
+app.get('/:lang/', (req, res) => {
+    const lang = req.params.lang;
+
+    // Check if language is supported
+    if (!supportedLanguages.includes(lang)) {
+        return res.redirect('/');
+    }
+
+    const html = renderHTMLWithSEO(lang);
+    res.send(html);
 });
 
 // Enhanced TTS endpoint with multiple voice support
@@ -269,6 +396,7 @@ app.get('/api/voices/:language', (req, res) => {
         voices
     });
 });
+
 
 // Get all supported languages
 app.get('/api/languages', (req, res) => {
