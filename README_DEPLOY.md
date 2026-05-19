@@ -1,8 +1,11 @@
 # 🚀 TTS Application - Deployment Guide
 
+cd /var/www/tts
+
 ## 📋 Mục lục
+
 - [🏠 Chạy Local](#-chạy-local)
-- [🧪 Test Local](#-test-local) 
+- [🧪 Test Local](#-test-local)
 - [🌐 Deploy lên Server](#-deploy-lên-server)
 - [🔧 Troubleshooting](#-troubleshooting)
 
@@ -59,6 +62,7 @@ nodemon server.js
 ### 🌐 4. Mở Browser
 
 Mở browser và truy cập:
+
 - **Local URL**: http://localhost:3000
 
 ---
@@ -83,7 +87,7 @@ curl http://localhost:3000/api/languages | jq '.languages | length'
 # Expected: 142
 
 # Test voices cho ngôn ngữ cụ thể
-curl http://localhost:3000/api/voices/vi-VN | jq '.voices | length'  
+curl http://localhost:3000/api/voices/vi-VN | jq '.voices | length'
 # Expected: 2 (hoặc nhiều hơn)
 
 # Test voices cho English
@@ -98,15 +102,12 @@ curl http://localhost:3000/api/voices/en-US | jq '.voices[0]'
 1. **Language Dropdown:**
    - ✅ Kiểm tra có 142 ngôn ngữ A-Z
    - ✅ Chọn ngôn ngữ khác nhau
-   
 2. **Voice Loading:**
    - ✅ Chọn ngôn ngữ → voices load tự động
    - ✅ Hiển thị đúng tên voice, gender, locale
-   
 3. **Voice Selection:**
    - ✅ Click chọn voice
    - ✅ Preview voice hoạt động
-   
 4. **TTS Generation:**
    - ✅ Nhập text
    - ✅ Generate audio
@@ -121,7 +122,7 @@ curl -X POST http://localhost:3000/api/tts/generate \
   -H "Content-Type: application/json" \
   -d '{
     "text": "Hello, this is a test",
-    "language": "en-US", 
+    "language": "en-US",
     "voice": "en-US-AriaNeural",
     "voiceName": "Aria",
     "gender": "female",
@@ -132,6 +133,7 @@ curl -X POST http://localhost:3000/api/tts/generate \
 ```
 
 **Expected response:**
+
 ```json
 {
   "success": true,
@@ -258,7 +260,7 @@ curl http://localhost:3000/api/voices/en-US | jq '.'
 # Kiểm tra nginx status
 sudo systemctl status nginx
 
-# Kiểm tra app status  
+# Kiểm tra app status
 pm2 status
 
 # Restart cả hai
@@ -297,8 +299,9 @@ free -m
 ## 🎯 Quick Deploy Checklist
 
 **Local Test:**
+
 - [ ] `npm install` ✅
-- [ ] `.env` file created ✅  
+- [ ] `.env` file created ✅
 - [ ] `node server.js` runs ✅
 - [ ] http://localhost:3000 loads ✅
 - [ ] Languages dropdown shows 142 items ✅
@@ -306,6 +309,7 @@ free -m
 - [ ] TTS generation works ✅
 
 **Server Deploy:**
+
 - [ ] `git pull origin main` ✅
 - [ ] `npm install --production` ✅
 - [ ] `.env` file exists ✅
@@ -321,14 +325,15 @@ free -m
 Nếu gặp vấn đề, check theo thứ tự:
 
 1. **Logs**: `pm2 logs tts-app`
-2. **Status**: `pm2 status` 
+2. **Status**: `pm2 status`
 3. **Nginx**: `sudo systemctl status nginx`
 4. **API Test**: `curl http://localhost:3000/health`
 5. **Frontend Console**: F12 Developer Tools
 
 **Server Info:**
+
 - **IP**: 51.38.176.94
-- **Domain**: text-to-speech.space  
+- **Domain**: text-to-speech.space
 - **Port**: 3000 (internal)
 - **SSL**: Cloudflare managed
 
@@ -336,12 +341,13 @@ Nếu gặp vấn đề, check theo thứ tự:
 
 ## 🔐 Security Notes
 
-⚠️ **Important**: 
+⚠️ **Important**:
+
 - Không commit file `.env` vào Git
-- Luôn dùng placeholder trong documentation  
+- Luôn dùng placeholder trong documentation
 - Azure subscription key phải được keep secret
 - Sử dụng environment variables cho production
 
 ---
 
-*Created by Claude Code Assistant 🤖*
+_Created by Claude Code Assistant 🤖_

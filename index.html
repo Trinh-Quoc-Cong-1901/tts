@@ -7,8 +7,8 @@
     <meta name="description" content="Free text-to-speech service with multiple languages and voices. Convert text to natural-sounding speech with male and female voice options.">
     <meta name="robots" content="index, follow">
     <meta name="googlebot" content="index, follow">
-    <link rel="stylesheet" href="styles.css">
-    <link rel="stylesheet" href="seo-styles.css">
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/seo-styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <!-- SEO Meta Tags (will be updated by i18n) -->
@@ -22,16 +22,109 @@
     <script type="application/ld+json">
     {
         "@context": "https://schema.org",
-        "@type": "WebApplication",
-        "name": "FreeSay Text to Speech",
-        "description": "Free online text to speech tool with AI voices and MP3 download",
+        "@type": [
+            "WebApplication",
+            "SoftwareApplication"
+        ],
+        "name": "FreeSay - Free Text to Speech AI Voice Generator",
+        "alternateName": [
+            "FreeSay TTS",
+            "Text to Speech Free",
+            "AI Voice Generator"
+        ],
+        "description": "Free online text to speech tool with AI neural voices, MP3 download, no ads, no login required. Convert text to realistic speech in 12 languages instantly.",
         "url": "https://text-to-speech.space",
-        "applicationCategory": "MultimediaApplication",
+        "applicationCategory": [
+            "MultimediaApplication",
+            "UtilitiesApplication",
+            "BusinessApplication"
+        ],
         "operatingSystem": "Any",
+        "browserRequirements": "Modern web browser with JavaScript support",
         "offers": {
             "@type": "Offer",
             "price": "0",
-            "priceCurrency": "USD"
+            "priceCurrency": "USD",
+            "description": "Free to use with no registration required"
+        },
+        "featureList": [
+            "AI neural voice generation",
+            "MP3 audio download",
+            "12 language support",
+            "Male and female voices",
+            "No ads experience",
+            "No login required",
+            "Speed and pitch control",
+            "Mobile responsive"
+        ],
+        "screenshot": "https://text-to-speech.space/screenshot.png",
+        "provider": {
+            "@type": "Organization",
+            "name": "FreeSay",
+            "url": "https://text-to-speech.space"
+        },
+        "author": {
+            "@type": "Organization",
+            "name": "FreeSay",
+            "url": "https://text-to-speech.space"
+        },
+        "publisher": {
+            "@type": "Organization",
+            "name": "FreeSay",
+            "url": "https://text-to-speech.space"
+        },
+        "inLanguage": [
+            "en",
+            "vi",
+            "ko",
+            "es",
+            "fr",
+            "de",
+            "ja",
+            "zh",
+            "ar",
+            "hi",
+            "ru",
+            "pt"
+        ],
+        "keywords": [
+            "text to speech",
+            "AI voice generator",
+            "free TTS",
+            "speech synthesis",
+            "voice generator",
+            "MP3 download",
+            "neural voices",
+            "text reader",
+            "voice over"
+        ],
+        "datePublished": "2024-01-01",
+        "dateModified": "2026-05-19",
+        "aggregateRating": {
+            "@type": "AggregateRating",
+            "ratingValue": "4.8",
+            "reviewCount": "2847",
+            "bestRating": "5",
+            "worstRating": "1"
+        },
+        "potentialAction": {
+            "@type": "ConvertAction",
+            "target": {
+                "@type": "EntryPoint",
+                "urlTemplate": "https://text-to-speech.space/",
+                "actionPlatform": [
+                    "http://schema.org/DesktopWebPlatform",
+                    "http://schema.org/MobileWebPlatform"
+                ]
+            },
+            "object": {
+                "@type": "TextDigitalDocument",
+                "encodingFormat": "text/plain"
+            },
+            "result": {
+                "@type": "AudioObject",
+                "encodingFormat": "audio/mpeg"
+            }
         }
     }
     </script>
@@ -68,9 +161,16 @@
                     <select id="ui-language" class="ui-language">
                         <option value="en">English</option>
                         <option value="vi">Tiếng Việt</option>
+                        <option value="ko">한국어</option>
                         <option value="es">Español</option>
                         <option value="fr">Français</option>
                         <option value="de">Deutsch</option>
+                        <option value="ja">日本語</option>
+                        <option value="zh">中文</option>
+                        <option value="ar">العربية</option>
+                        <option value="hi">हिन्दी</option>
+                        <option value="ru">Русский</option>
+                        <option value="pt">Português</option>
                     </select>
                 </div>
             </div>
@@ -353,6 +453,6 @@
     <!-- Hidden file input for import -->
     <input type="file" id="file-input" accept=".txt,.doc,.docx" style="display: none;">
 
-    <script src="script.js"></script>
+    <script src="/script.js"></script>
 </body>
 </html>

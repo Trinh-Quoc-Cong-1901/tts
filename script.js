@@ -48,6 +48,7 @@ const VOICE_CACHE = {};
 document.addEventListener('DOMContentLoaded', () => {
     initializeApp();
     setupEventListeners();
+    setLanguageFromURL();
     loadVoicesForLanguage();
 });
 
@@ -717,8 +718,45 @@ function base64ToBlob(base64, type) {
 }
 
 function handleUILanguageChange() {
-    // UI language change implementation
-    // This would typically update all UI text based on selected language
+    const selectedLanguage = elements.uiLanguage.value;
+    const currentPath = window.location.pathname;
+
+    // Save language preference
+    savePreferences();
+
+    // Build new URL based on selected language
+    let newUrl = '';
+
+    if (selectedLanguage === 'en') {
+        // English is the default language (root)
+        newUrl = '/';
+    } else {
+        // Other languages use /:lang/ format
+        newUrl = `/${selectedLanguage}/`;
+    }
+
+    // Only redirect if we're not already on the correct page
+    if (currentPath !== newUrl) {
+        console.log(`🌍 Switching language to ${selectedLanguage}: ${newUrl}`);
+        window.location.href = newUrl;
+    }
+}
+
+function setLanguageFromURL() {
+    const currentPath = window.location.pathname;
+    let detectedLanguage = 'en'; // default
+
+    // Extract language from URL path
+    const pathMatch = currentPath.match(/^\/([a-z]{2})\//);
+    if (pathMatch) {
+        detectedLanguage = pathMatch[1];
+    }
+
+    // Set the language selector to match current page
+    if (elements.uiLanguage) {
+        elements.uiLanguage.value = detectedLanguage;
+        console.log(`🌍 Detected language from URL: ${detectedLanguage}`);
+    }
 }
 
 // Preferences Management

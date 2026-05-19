@@ -24,7 +24,9 @@
       "Bash(git commit *)",
       "Bash(git rebase *)",
       "Bash(git reset *)",
-      "Bash(git status *)"
+      "Bash(git status *)",
+      "Bash(lsof -ti:3000)",
+      "Bash(xargs kill -9)"
     ]
   }
 }

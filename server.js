@@ -122,13 +122,20 @@ function renderHTMLWithSEO(language = 'en') {
         .replace(/property="og:title" content=".*?"/, `property="og:title" content="${content.seo.ogTitle || content.seo.title}"`)
         .replace(/property="og:description" content=".*?"/, `property="og:description" content="${content.seo.ogDescription || content.seo.description}"`);
 
+    // Add canonical URL
+    const canonicalUrl = language === 'en' ? 'https://text-to-speech.space/' : `https://text-to-speech.space/${language}/`;
+    const canonicalLink = `<link rel="canonical" href="${canonicalUrl}">`;
+
     // Add hreflang links
     const hreflangLinks = supportedLanguages.map(lang => {
         const url = lang === 'en' ? 'https://text-to-speech.space/' : `https://text-to-speech.space/${lang}/`;
         return `<link rel="alternate" hreflang="${lang}" href="${url}">`;
     }).join('\n    ');
 
-    finalHTML = finalHTML.replace('</head>', `    ${hreflangLinks}\n</head>`);
+    // Add x-default hreflang
+    const defaultHreflang = `<link rel="alternate" hreflang="x-default" href="https://text-to-speech.space/">`;
+
+    finalHTML = finalHTML.replace('</head>', `    ${canonicalLink}\n    ${hreflangLinks}\n    ${defaultHreflang}\n</head>`);
 
     // Update form elements with translated text
     if (content.content.form.h1) {
@@ -137,6 +144,14 @@ function renderHTMLWithSEO(language = 'en') {
 
     if (content.content.form.placeholder) {
         finalHTML = finalHTML.replace(/placeholder="Enter your text here..."/, `placeholder="${content.content.form.placeholder}"`);
+    }
+
+    // Set correct language option as selected
+    if (language !== 'en') {
+        finalHTML = finalHTML.replace(
+            `<option value="${language}">`,
+            `<option value="${language}" selected>`
+        );
     }
 
     // Insert SEO content before closing </main> tag
@@ -410,6 +425,17 @@ app.get('/api/languages', (req, res) => {
 function getVoicesForLanguage(language) {
     return voicesData.voiceDatabase[language] || [];
 }
+
+// SEO Files
+app.get('/robots.txt', (req, res) => {
+    res.type('text/plain');
+    res.sendFile(path.join(__dirname, 'robots.txt'));
+});
+
+app.get('/sitemap.xml', (req, res) => {
+    res.type('application/xml');
+    res.sendFile(path.join(__dirname, 'sitemap.xml'));
+});
 
 // Health check
 app.get('/health', (req, res) => {

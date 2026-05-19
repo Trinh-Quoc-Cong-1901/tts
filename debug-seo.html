@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SEO Content Debug</title>
+    <link rel="stylesheet" href="seo-styles.css">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .debug { background: #f0f0f0; padding: 10px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>SEO Content Debug Test</h1>
+
+    <div class="debug">
+        <h3>Loading JSON:</h3>
+        <button onclick="loadContent()">Load English Content</button>
+        <button onclick="loadVietnamese()">Load Vietnamese Content</button>
+        <div id="status"></div>
+    </div>
+
+    <div id="seo-content" class="seo-content">
+        <!-- Content will be injected here -->
+    </div>
+
+    <script>
+        async function loadContent() {
+            const status = document.getElementById('status');
+            const container = document.getElementById('seo-content');
+
+            try {
+                status.innerHTML = 'Loading English content...';
+                const response = await fetch('/text-to-speech/en.json');
+                const data = await response.json();
+
+                status.innerHTML = '✅ JSON loaded successfully';
+                console.log('Loaded data:', data);
+
+                // Render content
+                const html = generateSEOHTML(data.content.sections);
+                container.innerHTML = html;
+
+            } catch (error) {
+                status.innerHTML = '❌ Error: ' + error.message;
+                console.error('Load error:', error);
+            }
+        }
+
+        async function loadVietnamese() {
+            const status = document.getElementById('status');
+            const container = document.getElementById('seo-content');
+
+            try {
+                status.innerHTML = 'Loading Vietnamese content...';
+                const response = await fetch('/text-to-speech/vi.json');
+                const data = await response.json();
+
+                status.innerHTML = '✅ Tiếng Việt loaded successfully';
+                console.log('Loaded Vietnamese data:', data);
+
+                // Render content
+                const html = generateSEOHTML(data.content.sections);
+                container.innerHTML = html;
+
+            } catch (error) {
+                status.innerHTML = '❌ Error: ' + error.message;
+                console.error('Load error:', error);
+            }
+        }
+
+        function generateSEOHTML(sections) {
+            return sections.map(section => {
+                let html = `<section class="seo-section">`;
+
+                if (section.h2) {
+                    html += `<h2>${section.h2}</h2>`;
+                }
+
+                if (section.p) {
+                    section.p.forEach(paragraph => {
+                        html += `<p>${paragraph}</p>`;
+                    });
+                }
+
+                if (section.ul) {
+                    html += '<ul>';
+                    section.ul.forEach(item => {
+                        html += '<li>';
+                        if (item.h3) html += `<h3>${item.h3}</h3>`;
+                        if (item.p) item.p.forEach(p => html += `<p>${p}</p>`);
+                        html += '</li>';
+                    });
+                    html += '</ul>';
+                }
+
+                if (section.ol) {
+                    html += '<ol>';
+                    section.ol.forEach(item => {
+                        html += '<li>';
+                        if (item.h3) html += `<h3>${item.h3}</h3>`;
+                        if (item.p) item.p.forEach(p => html += `<p>${p}</p>`);
+                        html += '</li>';
+                    });
+                    html += '</ol>';
+                }
+
+                html += '</section>';
+                return html;
+            }).join('');
+        }
+    </script>
+</body>
+</html>

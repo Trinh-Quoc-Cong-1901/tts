@@ -1,0 +1,26 @@
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://text-to-speech.space/sitemap.xml
+
+# Block any temporary or development files
+Disallow: /temp/
+Disallow: /.env
+Disallow: /node_modules/
+Disallow: /debug-seo.html
+Disallow: /inject-seo-content.js
+
+# Allow all static assets
+Allow: *.css
+Allow: *.js
+Allow: *.png
+Allow: *.jpg
+Allow: *.jpeg
+Allow: *.gif
+Allow: *.svg
+Allow: *.ico
+Allow: *.mp3
+
+# Crawl delay (optional)
+Crawl-delay: 1
