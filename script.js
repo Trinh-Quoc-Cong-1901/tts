@@ -73,7 +73,17 @@ document.addEventListener('DOMContentLoaded', () => {
     // Track page view
     const currentPath = window.location.pathname;
     const language = currentPath.match(/^\/([a-z]{2})\//) ? currentPath.match(/^\/([a-z]{2})\//)[1] : 'en';
+
+    // Firebase Analytics
     trackPageView(`Text to Speech ${language.toUpperCase()}`, language);
+
+    // Google Analytics gtag
+    if (typeof gtag !== 'undefined') {
+        gtag('event', 'page_view', {
+            page_title: `Text to Speech ${language.toUpperCase()}`,
+            page_language: language
+        });
+    }
 });
 
 function initializeApp() {
