@@ -1,6 +1,8 @@
 # 🚀 TTS Application - Deployment Guide
 
 cd /var/www/tts
+git pull origin main  
+pm2 restart tts-app --update-env
 
 ## 📋 Mục lục
 

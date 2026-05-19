@@ -15,6 +15,12 @@ const elements = {
     themeToggle: document.getElementById('theme-toggle'),
     uiLanguage: document.getElementById('ui-language'),
 
+    // Mobile menu
+    mobileMenuToggle: document.getElementById('mobile-menu-toggle'),
+    mobileMenu: document.getElementById('mobile-menu'),
+    mobileThemeToggle: document.getElementById('mobile-theme-toggle'),
+    mobileUiLanguage: document.getElementById('mobile-ui-language'),
+
     // Sidebar controls
     voiceLanguage: document.getElementById('voice-language'),
     genderButtons: document.querySelectorAll('.gender-btn'),
@@ -69,6 +75,18 @@ function setupEventListeners() {
     elements.themeToggle.addEventListener('click', toggleTheme);
     elements.uiLanguage.addEventListener('change', handleUILanguageChange);
 
+    // Mobile menu controls
+    elements.mobileMenuToggle.addEventListener('click', toggleMobileMenu);
+    elements.mobileThemeToggle.addEventListener('click', toggleTheme);
+    elements.mobileUiLanguage.addEventListener('change', handleUILanguageChange);
+
+    // Close mobile menu when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!elements.mobileMenu.contains(e.target) && !elements.mobileMenuToggle.contains(e.target)) {
+            closeMobileMenu();
+        }
+    });
+
     // Sidebar controls
     elements.voiceLanguage.addEventListener('change', loadVoicesForLanguage);
     elements.genderButtons.forEach(btn => {
@@ -98,6 +116,7 @@ function setupEventListeners() {
 function toggleTheme() {
     state.isDarkMode = !state.isDarkMode;
     applyTheme();
+    syncMobileThemeToggle();
     savePreferences();
 }
 
@@ -756,6 +775,55 @@ function setLanguageFromURL() {
     if (elements.uiLanguage) {
         elements.uiLanguage.value = detectedLanguage;
         console.log(`🌍 Detected language from URL: ${detectedLanguage}`);
+    }
+
+    // Also set mobile language selector
+    if (elements.mobileUiLanguage) {
+        elements.mobileUiLanguage.value = detectedLanguage;
+    }
+}
+
+// Mobile Menu Functions
+function toggleMobileMenu() {
+    const isOpen = elements.mobileMenu.classList.contains('active');
+
+    if (isOpen) {
+        closeMobileMenu();
+    } else {
+        openMobileMenu();
+    }
+}
+
+function openMobileMenu() {
+    elements.mobileMenu.classList.add('active');
+    elements.mobileMenuToggle.classList.add('active');
+
+    // Sync mobile theme toggle with main theme toggle
+    syncMobileThemeToggle();
+
+    // Prevent body scroll when menu is open
+    document.body.style.overflow = 'hidden';
+}
+
+function closeMobileMenu() {
+    elements.mobileMenu.classList.remove('active');
+    elements.mobileMenuToggle.classList.remove('active');
+
+    // Restore body scroll
+    document.body.style.overflow = '';
+}
+
+function syncMobileThemeToggle() {
+    const isDark = state.isDarkMode;
+    const mobileIcon = elements.mobileThemeToggle.querySelector('i');
+    const mobileText = elements.mobileThemeToggle.querySelector('span');
+
+    if (isDark) {
+        mobileIcon.className = 'fas fa-sun';
+        mobileText.textContent = 'Light Mode';
+    } else {
+        mobileIcon.className = 'fas fa-moon';
+        mobileText.textContent = 'Dark Mode';
     }
 }
 
