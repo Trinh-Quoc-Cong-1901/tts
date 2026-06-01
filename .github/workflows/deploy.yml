@@ -1,4 +1,4 @@
-name: Build and Deploy (Node.js, CI → Server)
+name: Deploy Text-to-Speech Node.js App
 
 on:
   push:
@@ -6,14 +6,15 @@ on:
   workflow_dispatch:
 
 env:
-  # === CẦN THAY ĐỔI ===
+  # === PROJECT CONFIG ===
   PROJECT_NAME: ${{ vars.PROJECT_NAME || 'text-to-speech' }}
-  ARTIFACT_NAME: 'text_to_speech.tar.gz'
+  ARTIFACT_NAME: 'tts-app.tar.gz'
+  PM2_APP_NAME: 'tts-app'
 
-  # === GIỮ NGUYÊN (hoặc đổi nếu server khác) ===
+  # === SERVER CONFIG (GIỮ NGUYÊN) ===
   PROJECT_ROOT: ${{ vars.PROJECT_ROOT || '/var/www/CongDeploy/CICD' }}
-  RUN_DIR:      ${{ vars.RUN_DIR || format('/var/www/CongDeploy/CICD/run/{0}', vars.PROJECT_NAME || 'text-to-speech') }}
-  DEPLOY_USER:  ${{ vars.DEPLOY_USER  || 'gitdeploy' }}
+  RUN_DIR: ${{ vars.RUN_DIR || format('/var/www/CongDeploy/CICD/run/{0}', vars.PROJECT_NAME || 'text-to-speech') }}
+  DEPLOY_USER: ${{ vars.DEPLOY_USER || 'gitdeploy' }}
   DEPLOY_GROUP: ${{ vars.DEPLOY_GROUP || 'nginx' }}
 
 concurrency:
@@ -21,36 +22,67 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-and-deploy:
+  deploy-nodejs-app:
     runs-on: ubuntu-latest
+    name: Deploy Node.js TTS Application
 
     steps:
-      - name: Checkout
+      - name: Checkout source code
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'npm'
 
-      - name: Install dependencies
-        run: npm ci --production
+      - name: Install production dependencies
+        run: npm ci --production --silent
 
-      - name: Archive application
+      - name: Create application archive
         run: |
-          # Tạo file list ở /tmp để tránh thay đổi thư mục hiện tại
-          find . -type f -o -type d | grep -v -E '(\.git|\.github|node_modules)' > /tmp/file-list.txt
-          tar -czf "${ARTIFACT_NAME}" -T /tmp/file-list.txt node_modules/
-          rm -f /tmp/file-list.txt
+          # Tạo thư mục tạm để tránh conflict
+          mkdir -p /tmp/tts-archive
+
+          # Copy source code (loại trừ các file/folder không cần)
+          rsync -av \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='.env*' \
+            --exclude='*.log' \
+            --exclude='tmp/' \
+            --exclude='logs/' \
+            --exclude='.DS_Store' \
+            --exclude='coverage/' \
+            ./ /tmp/tts-archive/
+
+          # Copy node_modules production
+          cp -r node_modules/ /tmp/tts-archive/node_modules/
+
+          # Tạo archive từ thư mục tạm
+          cd /tmp/tts-archive
+          tar -czf "/tmp/${ARTIFACT_NAME}" .
+
+          # Move về workspace
+          mv "/tmp/${ARTIFACT_NAME}" "${GITHUB_WORKSPACE}/${ARTIFACT_NAME}"
+
+          # Cleanup
+          rm -rf /tmp/tts-archive
 
       - name: Upload to server
         run: |
+          # Setup SSH
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
-          scp -i ~/.ssh/deploy_key -P ${{ secrets.SSH_PORT }} "${ARTIFACT_NAME}" "${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:/tmp/${ARTIFACT_NAME}"
+
+          # Upload archive
+          scp -i ~/.ssh/deploy_key -P ${{ secrets.SSH_PORT }} \
+            "${ARTIFACT_NAME}" \
+            "${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:/tmp/${ARTIFACT_NAME}"
+
+          # Cleanup SSH key
           rm -f ~/.ssh/deploy_key
 
       - name: Deploy on server
@@ -60,38 +92,97 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
-          envs: PROJECT_NAME,PROJECT_ROOT,RUN_DIR,DEPLOY_USER,DEPLOY_GROUP,ARTIFACT_NAME
+          envs: PROJECT_NAME,PROJECT_ROOT,RUN_DIR,DEPLOY_USER,DEPLOY_GROUP,ARTIFACT_NAME,PM2_APP_NAME
           script: |
             set -euo pipefail
+
+            echo "🚀 Starting deployment for ${PROJECT_NAME}..."
             TMP_TAR="/tmp/${ARTIFACT_NAME}"
 
-            [ -f "$TMP_TAR" ] || { echo "Artifact not found: $TMP_TAR" >&2; exit 1; }
+            # Validate artifact exists
+            [ -f "$TMP_TAR" ] || {
+              echo "❌ Artifact not found: $TMP_TAR" >&2; exit 1;
+            }
 
-            # Validate RUN_DIR is within PROJECT_ROOT
-            case "$RUN_DIR" in "$PROJECT_ROOT"/*) ;; *)
-              echo "Unsafe RUN_DIR: $RUN_DIR" >&2; exit 1;;
+            # Security: Validate RUN_DIR is within PROJECT_ROOT
+            case "$RUN_DIR" in "$PROJECT_ROOT"/*)
+              echo "✅ Deploy directory validated: $RUN_DIR"
+              ;;
+            *)
+              echo "❌ Unsafe RUN_DIR: $RUN_DIR" >&2; exit 1
+              ;;
             esac
 
             # Create deploy directory
+            echo "📁 Creating deploy directory..."
             mkdir -p "$RUN_DIR"
 
-            # Clear old files and extract new
-            find "$RUN_DIR" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
-            tar -xzf "$TMP_TAR" -C "$RUN_DIR"
-
-            # Set permissions
-            find "$RUN_DIR" -type d -exec chmod 755 {} +
-            find "$RUN_DIR" -type f -exec chmod 644 {} +
-
-            # Set group for web server
-            if id -nG "$USER" | grep -qw "$DEPLOY_GROUP"; then
-              chgrp -R "$DEPLOY_GROUP" "$RUN_DIR" || true
+            # Backup current app (optional)
+            if [ -d "$RUN_DIR" ] && [ "$(ls -A $RUN_DIR 2>/dev/null)" ]; then
+              echo "💾 Creating backup..."
+              tar -czf "/tmp/backup-${PROJECT_NAME}-$(date +%Y%m%d-%H%M%S).tar.gz" -C "$RUN_DIR" . || true
             fi
 
-            # Install dependencies and restart PM2 for Node.js app
+            # Clear old deployment and extract new
+            echo "🧹 Clearing old deployment..."
+            find "$RUN_DIR" -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null || true
+
+            echo "📦 Extracting new deployment..."
+            tar -xzf "$TMP_TAR" -C "$RUN_DIR"
+
+            # Set proper permissions
+            echo "🔒 Setting permissions..."
+            find "$RUN_DIR" -type d -exec chmod 755 {} + 2>/dev/null || true
+            find "$RUN_DIR" -type f -exec chmod 644 {} + 2>/dev/null || true
+
+            # Set group ownership for web server
+            if id -nG "$USER" | grep -qw "$DEPLOY_GROUP" 2>/dev/null; then
+              echo "👥 Setting group ownership to $DEPLOY_GROUP..."
+              chgrp -R "$DEPLOY_GROUP" "$RUN_DIR" 2>/dev/null || true
+            fi
+
+            # Deploy Node.js application
             cd "$RUN_DIR"
-            npm ci --production --silent
-            pm2 restart tts-app --update-env || pm2 start server.js --name tts-app
+            echo "📋 Installing dependencies..."
+            npm ci --production --silent --no-audit --no-fund
+
+            # Restart PM2 application
+            echo "🔄 Restarting PM2 application..."
+            if pm2 list | grep -q "$PM2_APP_NAME"; then
+              pm2 restart "$PM2_APP_NAME" --update-env
+              echo "✅ PM2 app '$PM2_APP_NAME' restarted"
+            else
+              pm2 start server.js --name "$PM2_APP_NAME"
+              echo "🆕 PM2 app '$PM2_APP_NAME' started"
+            fi
+
+            # Show PM2 status
+            pm2 list | grep "$PM2_APP_NAME" || echo "⚠️  PM2 status check failed"
 
             # Cleanup
+            echo "🧹 Cleaning up..."
             rm -f "$TMP_TAR"
+
+            echo "🎉 Deployment completed successfully!"
+
+      - name: Verify deployment
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          envs: PM2_APP_NAME
+          script: |
+            # Wait a moment for app to start
+            sleep 3
+
+            # Check PM2 process status
+            if pm2 list | grep "$PM2_APP_NAME" | grep -q "online"; then
+              echo "✅ Application is running successfully"
+              pm2 show "$PM2_APP_NAME" | head -20
+            else
+              echo "❌ Application failed to start"
+              pm2 logs "$PM2_APP_NAME" --lines 10 || true
+              exit 1
+            fi
