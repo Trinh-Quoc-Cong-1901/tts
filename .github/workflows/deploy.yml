@@ -39,8 +39,10 @@ jobs:
 
       - name: Archive application
         run: |
-          find . -type f -o -type d | grep -v -E '(\.git|\.github|node_modules)' > file-list.txt
-          tar -czf "${ARTIFACT_NAME}" -T file-list.txt node_modules/
+          # Tạo file list ở /tmp để tránh thay đổi thư mục hiện tại
+          find . -type f -o -type d | grep -v -E '(\.git|\.github|node_modules)' > /tmp/file-list.txt
+          tar -czf "${ARTIFACT_NAME}" -T /tmp/file-list.txt node_modules/
+          rm -f /tmp/file-list.txt
 
       - name: Upload to server
         run: |
