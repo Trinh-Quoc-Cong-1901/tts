@@ -1,0 +1,95 @@
+name: Build and Deploy (Node.js, CI → Server)
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  # === CẦN THAY ĐỔI ===
+  PROJECT_NAME: ${{ vars.PROJECT_NAME || 'text-to-speech' }}
+  ARTIFACT_NAME: 'text_to_speech.tar.gz'
+
+  # === GIỮ NGUYÊN (hoặc đổi nếu server khác) ===
+  PROJECT_ROOT: ${{ vars.PROJECT_ROOT || '/var/www/CongDeploy/CICD' }}
+  RUN_DIR:      ${{ vars.RUN_DIR || format('/var/www/CongDeploy/CICD/run/{0}', vars.PROJECT_NAME || 'text-to-speech') }}
+  DEPLOY_USER:  ${{ vars.DEPLOY_USER  || 'gitdeploy' }}
+  DEPLOY_GROUP: ${{ vars.DEPLOY_GROUP || 'nginx' }}
+
+concurrency:
+  group: deploy-${{ github.repository }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --production
+
+      - name: Archive application
+        run: |
+          find . -type f -o -type d | grep -v -E '(\.git|\.github|node_modules)' > file-list.txt
+          tar -czf "${ARTIFACT_NAME}" -T file-list.txt node_modules/
+
+      - name: Upload to server
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+          scp -i ~/.ssh/deploy_key -P ${{ secrets.SSH_PORT }} "${ARTIFACT_NAME}" "${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:/tmp/${ARTIFACT_NAME}"
+          rm -f ~/.ssh/deploy_key
+
+      - name: Deploy on server
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          envs: PROJECT_NAME,PROJECT_ROOT,RUN_DIR,DEPLOY_USER,DEPLOY_GROUP,ARTIFACT_NAME
+          script: |
+            set -euo pipefail
+            TMP_TAR="/tmp/${ARTIFACT_NAME}"
+
+            [ -f "$TMP_TAR" ] || { echo "Artifact not found: $TMP_TAR" >&2; exit 1; }
+
+            # Validate RUN_DIR is within PROJECT_ROOT
+            case "$RUN_DIR" in "$PROJECT_ROOT"/*) ;; *)
+              echo "Unsafe RUN_DIR: $RUN_DIR" >&2; exit 1;;
+            esac
+
+            # Create deploy directory
+            mkdir -p "$RUN_DIR"
+
+            # Clear old files and extract new
+            find "$RUN_DIR" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+            tar -xzf "$TMP_TAR" -C "$RUN_DIR"
+
+            # Set permissions
+            find "$RUN_DIR" -type d -exec chmod 755 {} +
+            find "$RUN_DIR" -type f -exec chmod 644 {} +
+
+            # Set group for web server
+            if id -nG "$USER" | grep -qw "$DEPLOY_GROUP"; then
+              chgrp -R "$DEPLOY_GROUP" "$RUN_DIR" || true
+            fi
+
+            # Install dependencies and restart PM2 for Node.js app
+            cd "$RUN_DIR"
+            npm ci --production --silent
+            pm2 restart tts-app --update-env || pm2 start server.js --name tts-app
+
+            # Cleanup
+            rm -f "$TMP_TAR"
