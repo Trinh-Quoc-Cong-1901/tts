@@ -295,6 +295,7 @@ body {
 }
 
 .voice-item {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -342,6 +343,53 @@ body {
   border-radius: var(--border-radius-sm);
   font-size: 0.625rem;
   font-weight: var(--font-weight-medium);
+}
+
+.voice-engine {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius-sm);
+  font-size: 0.625rem;
+  font-weight: var(--font-weight-medium);
+  color: white;
+}
+
+.voice-engine.engine-azure {
+  background-color: #0078d4;
+}
+
+.voice-engine.engine-edge {
+  background-color: #16a085;
+}
+
+.voice-engine.engine-google {
+  background-color: #4285f4;
+}
+
+.voice-engine-badge {
+  position: absolute;
+  top: var(--spacing-xs);
+  right: var(--spacing-xs);
+  padding: 2px var(--spacing-xs);
+  border-radius: var(--border-radius-sm);
+  font-size: 0.5rem;
+  font-weight: var(--font-weight-bold);
+  color: white;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: var(--shadow-sm);
+  z-index: 1;
+}
+
+.voice-engine-badge.engine-azure {
+  background-color: #0078d4;
+}
+
+.voice-engine-badge.engine-edge {
+  background-color: #16a085;
+}
+
+.voice-engine-badge.engine-google {
+  background-color: #4285f4;
 }
 
 .voice-preview {

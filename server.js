@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const gtts = require('node-gtts');
 const AzureTTS = require('./azure-tts-integration');
+const EdgeTTS = require('./edge-tts-integration');
 const TextChunker = require('./text-chunker');
 const AudioMerger = require('./audio-merger');
 
@@ -51,6 +52,15 @@ if (process.env.AZURE_TTS_SUBSCRIPTION_KEY && process.env.USE_AZURE_TTS === 'tru
     console.log('✅ Azure TTS initialized');
 } else {
     console.log('ℹ️  Using Google TTS (node-gtts) - Add Azure credentials for real Azure voices');
+}
+
+// Initialize Edge TTS (always available as it's free)
+let edgeTTS = null;
+try {
+    edgeTTS = new EdgeTTS();
+    console.log('✅ Edge TTS initialized (free Microsoft voices)');
+} catch (error) {
+    console.warn('⚠️  Edge TTS initialization failed:', error.message);
 }
 
 const app = express();
@@ -222,7 +232,8 @@ app.post('/api/tts/generate', async (req, res) => {
             gender,
             speed = 0,
             pitch = 0,
-            isPreview = false
+            isPreview = false,
+            engine = 'auto'  // 'auto', 'azure', 'edge', 'google'
         } = req.body;
 
         if (!text || text.trim().length === 0) {
@@ -248,9 +259,10 @@ app.post('/api/tts/generate', async (req, res) => {
             fs.mkdirSync(tempDir, { recursive: true });
         }
 
-        console.log(`Generating TTS: ${language}, Voice: ${voiceName}, Text length: ${text.length}`);
+        console.log(`Generating TTS: ${language}, Voice: ${voiceName}, Engine: ${engine}, Text length: ${text.length}`);
 
-        if (azureTTS && voice) {
+        // Route to appropriate TTS engine based on user choice
+        if (engine === 'azure' && azureTTS && voice) {
             // Use Azure TTS with real voice
             try {
                 console.log(`Using Azure TTS with voice: ${voice}`);
@@ -294,18 +306,134 @@ app.post('/api/tts/generate', async (req, res) => {
 
             } catch (azureError) {
                 console.error('Azure TTS Error:', azureError);
-                // Fall back to Google TTS
+                // Fall back to Edge TTS first, then Google TTS
+                await generateWithEdgeTTS();
+            }
+        } else if (engine === 'edge' && edgeTTS) {
+            // Use Edge TTS directly
+            await generateWithEdgeTTS();
+        } else if (engine === 'google') {
+            // Use Google TTS directly
+            await generateWithGoogleTTS();
+        } else {
+            // Auto mode: Always try Azure first, then Edge, then Google
+            if (azureTTS) {
+                try {
+                    console.log(`🥇 Auto mode: Trying Azure TTS first (Premium)`);
+
+                    // Use provided voice or fallback to a default Azure voice
+                    const azureVoice = voice || 'en-US-AriaNeural';
+                    const audioBuffer = await azureTTS.generateSpeech(text, azureVoice, speed, pitch);
+
+                    // Save to temp file
+                    fs.writeFileSync(outputPath, audioBuffer);
+
+                    const audioBase64 = audioBuffer.toString('base64');
+
+                    // Generate filename
+                    const filename = isPreview
+                        ? `preview_${voiceName}_${timestamp}.mp3`
+                        : `tts_${voiceName}_${timestamp}.mp3`;
+
+                    // Clean up temp file after a delay
+                    setTimeout(() => {
+                        if (fs.existsSync(outputPath)) {
+                            fs.unlinkSync(outputPath);
+                        }
+                    }, 30000);
+
+                    res.json({
+                        success: true,
+                        audio: audioBase64,
+                        contentType: 'audio/mpeg',
+                        filename,
+                        voiceUsed: {
+                            id: azureVoice,
+                            name: voiceName || 'Aria',
+                            language,
+                            gender
+                        },
+                        settings: {
+                            speed,
+                            pitch,
+                            isPreview
+                        },
+                        engine: 'Azure TTS (Primary)'
+                    });
+
+                } catch (azureError) {
+                    console.error('🚨 Azure TTS failed in auto mode:', azureError);
+                    console.log('🥈 Falling back to Edge TTS (Free)');
+                    await generateWithEdgeTTS();
+                }
+            } else {
+                // Azure not available, start with Edge TTS
+                console.log('🥈 Azure TTS not available, starting with Edge TTS (Free)');
+                await generateWithEdgeTTS();
+            }
+        }
+
+        async function generateWithEdgeTTS() {
+            if (!edgeTTS) {
+                console.log('🚨 Edge TTS not available, falling back to Google TTS');
+                await generateWithGoogleTTS();
+                return;
+            }
+
+            try {
+                console.log(`🥈 Using Edge TTS (Free) with language: ${language}`);
+
+                // Find best Edge TTS voice for the language
+                const edgeVoice = await edgeTTS.findBestVoice(language, gender);
+                const audioBuffer = await edgeTTS.generateSpeech(text, edgeVoice, speed, pitch);
+
+                // Save to temp file
+                fs.writeFileSync(outputPath, audioBuffer);
+
+                const audioBase64 = audioBuffer.toString('base64');
+
+                // Generate filename
+                const filename = isPreview
+                    ? `preview_${voiceName}_${timestamp}.mp3`
+                    : `tts_${voiceName}_${timestamp}.mp3`;
+
+                // Clean up temp file after a delay
+                setTimeout(() => {
+                    if (fs.existsSync(outputPath)) {
+                        fs.unlinkSync(outputPath);
+                    }
+                }, 30000);
+
+                res.json({
+                    success: true,
+                    audio: audioBase64,
+                    contentType: 'audio/mpeg',
+                    filename,
+                    voiceUsed: {
+                        id: edgeVoice,
+                        name: `Edge: ${voiceName || edgeVoice}`,
+                        language,
+                        gender
+                    },
+                    settings: {
+                        speed,
+                        pitch,
+                        isPreview
+                    },
+                    engine: 'Edge TTS (Free)'
+                });
+
+            } catch (edgeError) {
+                console.error('🚨 Edge TTS failed:', edgeError);
+                console.log('🥉 Final fallback to Google TTS');
                 await generateWithGoogleTTS();
             }
-        } else {
-            // Use Google TTS as fallback
-            await generateWithGoogleTTS();
         }
 
         async function generateWithGoogleTTS() {
             // Extract base language code for gTTS
             const langCode = extractLanguageCode(language);
-            console.log(`Using Google TTS fallback with language: ${langCode}`);
+            console.log(`🥉 Using Google TTS (Final Fallback) with language: ${langCode}`);
 
             // Create gTTS instance
             const gTTSInstance = gtts(langCode);
@@ -778,17 +906,26 @@ function extractLanguageCode(language) {
 }
 
 // Get available voices for a language
-app.get('/api/voices/:language', (req, res) => {
-    const language = req.params.language;
+app.get('/api/voices/:language', async (req, res) => {
+    try {
+        const language = req.params.language;
+        const selectedEngine = req.query.engine || 'auto';  // Get engine from query params
 
-    // Voice database matching frontend
-    const voices = getVoicesForLanguage(language);
+        // Voice database matching frontend
+        const voices = await getVoicesForLanguage(language, selectedEngine);
 
-    res.json({
-        success: true,
-        language,
-        voices
-    });
+        res.json({
+            success: true,
+            language,
+            voices
+        });
+    } catch (error) {
+        console.error('Error getting voices:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to get voices'
+        });
+    }
 });
 
 
@@ -801,8 +938,89 @@ app.get('/api/languages', (req, res) => {
 });
 
 // Helper function to get voices for a language
-function getVoicesForLanguage(language) {
-    return voicesData.voiceDatabase[language] || [];
+async function getVoicesForLanguage(language, selectedEngine = 'auto') {
+    const azureVoices = voicesData.voiceDatabase[language] || [];
+
+    console.log(`🎛️ Getting voices for ${language} with engine: ${selectedEngine}`);
+
+    // Manual engine selection
+    if (selectedEngine === 'azure' && azureTTS && azureVoices.length > 0) {
+        console.log(`🥇 Manually selected: ${azureVoices.length} Azure TTS voices`);
+        return azureVoices.map(voice => ({
+            ...voice,
+            engine: 'azure'
+        }));
+    }
+
+    if (selectedEngine === 'edge' && edgeTTS) {
+        try {
+            const edgeVoices = await edgeTTS.getVoicesForLanguage(language);
+            console.log(`🥈 Manually selected: ${edgeVoices.length} Edge TTS voices`);
+            return edgeVoices.map(voice => ({
+                ...voice,
+                engine: 'edge'
+            }));
+        } catch (error) {
+            console.warn('Failed to get Edge TTS voices:', error.message);
+            return [];
+        }
+    }
+
+    if (selectedEngine === 'google') {
+        console.log(`🥉 Manually selected: Google TTS`);
+        return [{
+            id: 'google-tts',
+            name: 'Default Voice',
+            gender: 'neutral',
+            language: language,
+            engine: 'google',
+            country: 'Global',
+            locale: language
+        }];
+    }
+
+    // Auto mode: Priority-based selection
+    if (selectedEngine === 'auto') {
+        // Priority: If Azure TTS is available, only show Azure voices
+        if (azureTTS && azureVoices.length > 0) {
+            console.log(`🥇 Auto mode: Showing ${azureVoices.length} Azure TTS voices for ${language}`);
+            return azureVoices.map(voice => ({
+                ...voice,
+                engine: 'azure'
+            }));
+        }
+
+        // Fallback: If Azure not available, show Edge TTS voices
+        if (edgeTTS) {
+            try {
+                const edgeVoices = await edgeTTS.getVoicesForLanguage(language);
+                if (edgeVoices.length > 0) {
+                    console.log(`🥈 Auto mode: Showing ${edgeVoices.length} Edge TTS voices (Azure not available)`);
+                    return edgeVoices.map(voice => ({
+                        ...voice,
+                        engine: 'edge'
+                    }));
+                }
+            } catch (error) {
+                console.warn('Failed to get Edge TTS voices:', error.message);
+            }
+        }
+
+        // Final fallback: Google TTS
+        console.log(`🥉 Auto mode: Using Google TTS fallback`);
+        return [{
+            id: 'google-tts',
+            name: 'Default Voice',
+            gender: 'neutral',
+            language: language,
+            engine: 'google',
+            country: 'Global',
+            locale: language
+        }];
+    }
+
+    // If unknown engine, return empty
+    return [];
 }
 
 // SEO Files

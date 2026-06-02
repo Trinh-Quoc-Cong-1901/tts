@@ -28,7 +28,10 @@
       "Bash(lsof -ti:3000)",
       "Bash(xargs kill -9)",
       "Bash(PORT=3001 node *)",
-      "Bash(python3 *)"
+      "Bash(python3 *)",
+      "Bash(pip3 install *)",
+      "Bash(brew install *)",
+      "Bash(edge-tts --list-voices)"
     ]
   }
 }

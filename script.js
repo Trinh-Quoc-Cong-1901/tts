@@ -36,6 +36,7 @@ const elements = {
 
     // Sidebar controls
     voiceLanguage: document.getElementById('voice-language'),
+    ttsEngine: document.getElementById('tts-engine'),
     genderButtons: document.querySelectorAll('.gender-btn'),
     voiceSearch: document.getElementById('voice-search'),
     voiceList: document.getElementById('voice-list'),
@@ -117,6 +118,7 @@ function setupEventListeners() {
 
     // Sidebar controls
     elements.voiceLanguage.addEventListener('change', loadVoicesForLanguage);
+    elements.ttsEngine.addEventListener('change', handleEngineChange);
     elements.genderButtons.forEach(btn => {
         btn.addEventListener('click', handleGenderFilter);
     });
@@ -169,6 +171,7 @@ function applyTheme() {
 // Voice Management
 async function loadVoicesForLanguage() {
     const selectedLanguage = elements.voiceLanguage?.value;
+    const selectedEngine = elements.ttsEngine?.value || 'auto';
 
     // Show loading state
     elements.voiceList.innerHTML = `
@@ -179,18 +182,21 @@ async function loadVoicesForLanguage() {
     `;
 
     try {
+        // Create cache key that includes both language and engine
+        const cacheKey = `${selectedLanguage}_${selectedEngine}`;
+
         // Check cache first
-        if (VOICE_CACHE[selectedLanguage]) {
-            state.currentVoices = VOICE_CACHE[selectedLanguage];
+        if (VOICE_CACHE[cacheKey]) {
+            state.currentVoices = VOICE_CACHE[cacheKey];
         } else {
-            // Fetch voices from server API
-            const response = await fetch(`/api/voices/${selectedLanguage}`);
+            // Fetch voices from server API with engine parameter
+            const response = await fetch(`/api/voices/${selectedLanguage}?engine=${selectedEngine}`);
             const data = await response.json();
 
             if (data.success) {
                 state.currentVoices = data.voices || [];
                 // Cache the result
-                VOICE_CACHE[selectedLanguage] = state.currentVoices;
+                VOICE_CACHE[cacheKey] = state.currentVoices;
             } else {
                 throw new Error(data.message || 'Failed to load voices');
             }
@@ -235,6 +241,27 @@ async function loadVoicesForLanguage() {
             </div>
         `;
     }
+}
+
+function handleEngineChange() {
+    console.log(`🎛️ TTS Engine changed to: ${elements.ttsEngine.value}`);
+
+    // Clear cache for current language since engine changed
+    const selectedLanguage = elements.voiceLanguage?.value;
+    if (selectedLanguage) {
+        // Clear all cache entries for this language (all engines)
+        Object.keys(VOICE_CACHE).forEach(key => {
+            if (key.startsWith(selectedLanguage + '_')) {
+                delete VOICE_CACHE[key];
+            }
+        });
+    }
+
+    // Reload voices with new engine
+    loadVoicesForLanguage();
+
+    // Save preference
+    savePreferences();
 }
 
 function resetFilters() {
@@ -294,9 +321,22 @@ function renderVoiceList() {
         return;
     }
 
+    // Check if we should show engine tags
+    const selectedEngine = elements.ttsEngine?.value || 'auto';
+    const uniqueEngines = [...new Set(state.filteredVoices.map(voice => voice.engine))];
+
+    // Show engine tags when:
+    // 1. Manual engine selection (not auto)
+    // 2. Mixed engines
+    // 3. Non-Azure single engine in auto mode
+    const showEngineTags = selectedEngine !== 'auto' ||
+                          uniqueEngines.length > 1 ||
+                          (uniqueEngines.length === 1 && uniqueEngines[0] !== 'azure');
+
     const voicesHTML = state.filteredVoices.map(voice => `
         <div class="voice-item ${state.selectedVoice?.id === voice.id ? 'selected' : ''}"
              data-voice-id="${voice.id}">
+            ${showEngineTags && voice.engine ? `<div class="voice-engine-badge engine-${voice.engine}">${voice.engine.toUpperCase()}</div>` : ''}
             <div class="voice-info">
                 <div class="voice-name">${voice.name}</div>
                 <div class="voice-details">
@@ -720,6 +760,7 @@ async function handleGenerate() {
 
 async function generateTTS(text, voice, isPreview = false) {
     const language = elements.voiceLanguage.value;
+    const engine = elements.ttsEngine.value;
     const speed = parseInt(elements.speedRange.value);
     const pitch = parseInt(elements.pitchRange.value);
 
@@ -739,7 +780,8 @@ async function generateTTS(text, voice, isPreview = false) {
         gender: voice.gender,
         speed,
         pitch,
-        isPreview
+        isPreview,
+        engine
     };
 
     console.log(`Using ${isLongText ? 'long text' : 'regular'} TTS endpoint for ${text.length} characters`);
