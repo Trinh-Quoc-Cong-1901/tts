@@ -160,24 +160,27 @@ jobs:
 
             # Kill any remaining Node.js processes owned by this user
             echo "💥 Cleaning up user Node.js processes..."
-            pkill -f "node.*server.js" -u "$(whoami)" || true
-            pkill -f "PM2" -u "$(whoami)" || true
+            timeout 10 pkill -f "node.*server.js" -u "$(whoami)" 2>/dev/null || echo "No node server processes found"
+            timeout 10 pkill -f "PM2" -u "$(whoami)" 2>/dev/null || echo "No PM2 processes found"
+            sleep 2
 
             # Check if port 3000 is occupied by our processes
             echo "🔍 Checking port 3000..."
-            OCCUPIED_PID=$(lsof -ti:3000 2>/dev/null | head -1 || echo "")
-            if [ -n "$OCCUPIED_PID" ]; then
+            OCCUPIED_PID=$(timeout 5 lsof -ti:3000 2>/dev/null | head -1 || echo "")
+            if [ -n "$OCCUPIED_PID" ] && [ "$OCCUPIED_PID" != "" ]; then
               echo "⚠️ Port 3000 occupied by PID $OCCUPIED_PID"
               # Only kill if it's owned by current user
-              if ps -o user= -p "$OCCUPIED_PID" 2>/dev/null | grep -q "$(whoami)"; then
+              if timeout 5 ps -o user= -p "$OCCUPIED_PID" 2>/dev/null | grep -q "$(whoami)"; then
                 echo "💥 Killing our process on port 3000..."
-                kill -9 "$OCCUPIED_PID" || true
+                timeout 5 kill -9 "$OCCUPIED_PID" 2>/dev/null || echo "Process already gone"
                 sleep 2
               else
                 echo "❌ Port 3000 occupied by another user's process. Cannot kill."
-                ps -o pid,user,cmd -p "$OCCUPIED_PID" 2>/dev/null || true
+                timeout 5 ps -o pid,user,cmd -p "$OCCUPIED_PID" 2>/dev/null || echo "Cannot get process info"
                 exit 1
               fi
+            else
+              echo "✅ Port 3000 is free"
             fi
 
             # Clean up user PM2 runtime directory
@@ -185,10 +188,12 @@ jobs:
 
             # Final port verification
             echo "🔍 Final port verification..."
-            if lsof -ti:3000 >/dev/null 2>&1; then
+            if timeout 5 lsof -ti:3000 >/dev/null 2>&1; then
               echo "❌ CRITICAL: Port 3000 still occupied!"
-              lsof -i:3000 2>/dev/null || echo "Cannot get port details"
+              timeout 5 lsof -i:3000 2>/dev/null || echo "Cannot get port details"
               exit 1
+            else
+              echo "✅ Port 3000 is completely free"
             fi
 
             echo "✅ Port 3000 completely free"
