@@ -197,12 +197,31 @@ async function loadVoicesForLanguage() {
         }
 
         state.filteredVoices = [...state.currentVoices];
-        state.selectedVoice = null;
 
         // Reset filters
         resetFilters();
 
-        // Render voices
+        // Auto-select first voice or load saved preference for this language
+        const selectedLanguage = elements.voiceLanguage.value;
+        const savedPreferences = getSavedPreferences();
+        const savedVoiceForLanguage = savedPreferences.voicesByLanguage?.[selectedLanguage];
+
+        if (savedVoiceForLanguage && state.filteredVoices.find(v => v.id === savedVoiceForLanguage)) {
+            // Load saved voice for this language
+            state.selectedVoice = state.filteredVoices.find(v => v.id === savedVoiceForLanguage);
+            console.log(`🎤 Loaded saved voice: ${state.selectedVoice.name} for ${selectedLanguage}`);
+        } else if (state.filteredVoices.length > 0) {
+            // Auto-select first voice if no saved preference
+            state.selectedVoice = state.filteredVoices[0];
+            console.log(`🎤 Auto-selected first voice: ${state.selectedVoice.name} for ${selectedLanguage}`);
+
+            // Save this auto-selection as preference
+            saveVoicePreferenceByLanguage(selectedLanguage, state.selectedVoice.id);
+        } else {
+            state.selectedVoice = null;
+        }
+
+        // Render voices with selection
         renderVoiceList();
         updateButtonStates();
 
@@ -312,6 +331,13 @@ function renderVoiceList() {
 
 function handleVoiceSelection(voiceId) {
     state.selectedVoice = state.filteredVoices.find(v => v.id === voiceId);
+
+    // Save voice preference for current language
+    const selectedLanguage = elements.voiceLanguage.value;
+    saveVoicePreferenceByLanguage(selectedLanguage, voiceId);
+
+    console.log(`🎤 Voice selected: ${state.selectedVoice.name} for ${selectedLanguage}`);
+
     renderVoiceList();
     updateButtonStates();
 }
@@ -946,10 +972,37 @@ function savePreferences() {
         speed: elements.speedRange.value,
         pitch: elements.pitchRange.value,
         autoplay: elements.autoplayCheckbox.checked,
-        uiLanguage: elements.uiLanguage.value
+        uiLanguage: elements.uiLanguage.value,
+        voicesByLanguage: getSavedPreferences().voicesByLanguage || {}
     };
 
     localStorage.setItem('tts-preferences', JSON.stringify(preferences));
+}
+
+function saveVoicePreferenceByLanguage(language, voiceId) {
+    const preferences = getSavedPreferences();
+
+    if (!preferences.voicesByLanguage) {
+        preferences.voicesByLanguage = {};
+    }
+
+    preferences.voicesByLanguage[language] = voiceId;
+
+    // Update global preferences and save
+    preferences.selectedLanguage = language;
+    preferences.selectedVoiceId = voiceId;
+
+    localStorage.setItem('tts-preferences', JSON.stringify(preferences));
+}
+
+function getSavedPreferences() {
+    try {
+        const saved = localStorage.getItem('tts-preferences');
+        return saved ? JSON.parse(saved) : {};
+    } catch (error) {
+        console.warn('Failed to parse saved preferences:', error);
+        return {};
+    }
 }
 
 function loadPreferences() {
