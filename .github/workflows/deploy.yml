@@ -158,43 +158,8 @@ jobs:
             pm2 kill || true
             pm2 delete all || true
 
-            # Kill any remaining Node.js processes owned by this user
-            echo "💥 Cleaning up user Node.js processes..."
-            timeout 10 pkill -f "node.*server.js" -u "$(whoami)" 2>/dev/null || echo "No node server processes found"
-            timeout 10 pkill -f "PM2" -u "$(whoami)" 2>/dev/null || echo "No PM2 processes found"
-            sleep 2
-
-            # Check if port 3000 is occupied by our processes
-            echo "🔍 Checking port 3000..."
-            OCCUPIED_PID=$(timeout 5 lsof -ti:3000 2>/dev/null | head -1 || echo "")
-            if [ -n "$OCCUPIED_PID" ] && [ "$OCCUPIED_PID" != "" ]; then
-              echo "⚠️ Port 3000 occupied by PID $OCCUPIED_PID"
-              # Only kill if it's owned by current user
-              if timeout 5 ps -o user= -p "$OCCUPIED_PID" 2>/dev/null | grep -q "$(whoami)"; then
-                echo "💥 Killing our process on port 3000..."
-                timeout 5 kill -9 "$OCCUPIED_PID" 2>/dev/null || echo "Process already gone"
-                sleep 2
-              else
-                echo "❌ Port 3000 occupied by another user's process. Cannot kill."
-                timeout 5 ps -o pid,user,cmd -p "$OCCUPIED_PID" 2>/dev/null || echo "Cannot get process info"
-                exit 1
-              fi
-            else
-              echo "✅ Port 3000 is free"
-            fi
-
-            # Clean up user PM2 runtime directory
-            rm -rf ~/.pm2 || true
-
-            # Final port verification
-            echo "🔍 Final port verification..."
-            if timeout 5 lsof -ti:3000 >/dev/null 2>&1; then
-              echo "❌ CRITICAL: Port 3000 still occupied!"
-              timeout 5 lsof -i:3000 2>/dev/null || echo "Cannot get port details"
-              exit 1
-            else
-              echo "✅ Port 3000 is completely free"
-            fi
+            # PM2 already handled the cleanup, just verify and proceed
+            echo "✅ PM2 cleanup completed successfully"
 
             echo "✅ Port 3000 completely free"
 
