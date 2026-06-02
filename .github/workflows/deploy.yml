@@ -148,23 +148,41 @@ jobs:
 
             # Setup sudo permissions for PM2 management
             echo "🔧 Setting up PM2 permissions..."
-            echo "${USER} ALL=(ALL) NOPASSWD: /usr/bin/pm2, /usr/local/bin/pm2" | sudo tee /etc/sudoers.d/pm2-deploy > /dev/null || true
+            echo "${USER} ALL=(ALL) NOPASSWD: /usr/bin/pm2, /usr/local/bin/pm2, /usr/bin/lsof, /usr/bin/kill" | sudo tee /etc/sudoers.d/pm2-deploy > /dev/null || true
 
-            # Restart PM2 application with proper permissions
-            echo "🔄 Restarting PM2 application..."
+            # Force stop any process using port 3000
+            echo "🔄 Cleaning up port 3000..."
+            sudo lsof -ti:3000 | xargs -r sudo kill -9 || true
+            sleep 2
 
-            # Check if PM2 process exists (may be running as different user)
-            if sudo pm2 list | grep -q "$PM2_APP_NAME"; then
-              echo "📝 Found existing PM2 process, stopping it..."
-              sudo pm2 stop "$PM2_APP_NAME" || true
-              sudo pm2 delete "$PM2_APP_NAME" || true
+            # Stop PM2 processes from all users
+            echo "🛑 Stopping all PM2 processes named $PM2_APP_NAME..."
+            sudo pm2 stop "$PM2_APP_NAME" || true
+            sudo pm2 delete "$PM2_APP_NAME" || true
+
+            # Also stop from current user's PM2
+            pm2 stop "$PM2_APP_NAME" || true
+            pm2 delete "$PM2_APP_NAME" || true
+
+            # Double check port is free
+            if sudo lsof -i:3000; then
+              echo "⚠️  Port 3000 still in use, force killing..."
+              sudo lsof -ti:3000 | xargs -r sudo kill -9 || true
+              sleep 3
+            fi
+
+            # Verify port 3000 is free
+            if sudo lsof -i:3000 > /dev/null 2>&1; then
+              echo "❌ Port 3000 still occupied after cleanup!"
+              sudo lsof -i:3000
+              exit 1
             fi
 
             # Start fresh PM2 process as current user (gitdeploy)
-            echo "🚀 Starting new PM2 process..."
+            echo "🚀 Starting new PM2 process as $(whoami)..."
             pm2 start server.js --name "$PM2_APP_NAME"
             pm2 save
-            echo "✅ PM2 app '$PM2_APP_NAME' started as $(whoami)"
+            echo "✅ PM2 app '$PM2_APP_NAME' started successfully"
 
             # Show PM2 status
             pm2 list | grep "$PM2_APP_NAME" || echo "⚠️  PM2 status check failed"
