@@ -1155,7 +1155,9 @@ class SupportWidget {
         this.supportToggle = document.getElementById('support-toggle');
         this.supportPanel = document.getElementById('support-panel');
         this.closeBtn = document.getElementById('close-support');
-        this.emailBtn = document.getElementById('email-support');
+        this.sendBtn = document.getElementById('send-support-email');
+        this.messageTextarea = document.getElementById('support-message');
+        this.validationTooltip = document.getElementById('validation-tooltip');
         this.isOpen = false;
 
         this.init();
@@ -1172,9 +1174,14 @@ class SupportWidget {
             this.closePanel();
         });
 
-        // Email support
-        this.emailBtn.addEventListener('click', () => {
-            this.openEmailClient();
+        // Send email with validation
+        this.sendBtn.addEventListener('click', () => {
+            this.handleSendEmail();
+        });
+
+        // Hide validation tooltip when typing
+        this.messageTextarea.addEventListener('input', () => {
+            this.hideValidation();
         });
 
         // Close when clicking outside
@@ -1220,20 +1227,11 @@ class SupportWidget {
 
     openEmailClient() {
         const subject = encodeURIComponent('Support Request - Text-to-Speech.space');
-        const body = encodeURIComponent(`Hi there,
-
-I need help with the Text-to-Speech service.
-
-Issue/Question:
-[Please describe your question or issue here]
-
-Page URL: ${window.location.href}
-Browser: ${navigator.userAgent}
-Timestamp: ${new Date().toISOString()}
+        const body = encodeURIComponent(`[Please describe your question or issue here]
 
 Thank you for your assistance!`);
 
-        const emailUrl = `mailto:contact.ssvidcc@gmail.com?subject=${subject}&body=${body}`;
+        const emailUrl = `mailto:trinhquoccongldb1@gmail.com?subject=${subject}&body=${body}`;
 
         // Try to open email client
         try {
@@ -1275,16 +1273,80 @@ Thank you for your assistance!`);
                 <p><strong>Please contact us manually:</strong></p>
                 <p>
                     <i class="fas fa-envelope"></i>
-                    <a href="mailto:contact.ssvidcc@gmail.com" style="color: var(--primary-color);">
-                        contact.ssvidcc@gmail.com
+                    <a href="mailto:trinhquoccongldb1@gmail.com" style="color: var(--primary-color);">
+                        trinhquoccongldb1@gmail.com
                     </a>
                 </p>
-                <button class="email-btn" onclick="navigator.clipboard.writeText('contact.ssvidcc@gmail.com').then(() => alert('Email copied to clipboard!'))">
+                <button class="email-btn" onclick="navigator.clipboard.writeText('trinhquoccongldb1@gmail.com').then(() => alert('Email copied to clipboard!'))">
                     <i class="fas fa-copy"></i>
                     Copy Email
                 </button>
             </div>
         `;
+    }
+
+    handleSendEmail() {
+        const message = this.messageTextarea.value.trim();
+
+        if (!message) {
+            this.showValidation();
+            this.messageTextarea.focus();
+            return;
+        }
+
+        this.hideValidation();
+        this.openEmailClientWithMessage(message);
+    }
+
+    showValidation() {
+        this.validationTooltip.style.display = 'block';
+        this.messageTextarea.style.borderColor = '#ef4444';
+    }
+
+    hideValidation() {
+        this.validationTooltip.style.display = 'none';
+        this.messageTextarea.style.borderColor = '';
+    }
+
+    openEmailClientWithMessage(userMessage) {
+        const subject = encodeURIComponent('Support Request - Text-to-Speech.space');
+        const body = encodeURIComponent(`${userMessage}
+
+Thank you for your assistance!`);
+
+        const emailUrl = `mailto:trinhquoccongldb1@gmail.com?subject=${subject}&body=${body}`;
+
+        // Try to open email client
+        try {
+            window.location.href = emailUrl;
+
+            // Track analytics
+            if (typeof gtag !== 'undefined') {
+                gtag('event', 'support_email_send', {
+                    event_category: 'engagement',
+                    event_label: 'email_support_with_message'
+                });
+            }
+
+            // Show success and clear form
+            this.showSendSuccess();
+        } catch (error) {
+            console.warn('Could not open email client:', error);
+            this.showFallbackOptions();
+        }
+    }
+
+    showSendSuccess() {
+        const originalContent = this.sendBtn.innerHTML;
+        this.sendBtn.innerHTML = '<i class="fas fa-check"></i> Email Client Opening...';
+        this.sendBtn.style.background = '#10b981';
+
+        setTimeout(() => {
+            this.sendBtn.innerHTML = originalContent;
+            this.sendBtn.style.background = '';
+            this.messageTextarea.value = '';
+            this.closePanel();
+        }, 2000);
     }
 }
 

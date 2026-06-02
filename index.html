@@ -516,24 +516,37 @@
     <!-- Support Widget -->
     <div id="support-widget" class="support-widget">
         <div class="support-toggle" id="support-toggle">
-            <i class="fas fa-headset"></i>
+            <i class="fas fa-comments"></i>
             <span class="support-text">Support</span>
         </div>
         <div class="support-panel" id="support-panel">
-            <div class="support-header">
-                <h4><i class="fas fa-headset"></i> Need Help?</h4>
-                <button class="close-btn" id="close-support">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="support-content">
-                <p>Have questions or need assistance? We're here to help!</p>
-                <button class="email-btn" id="email-support">
-                    <i class="fas fa-envelope"></i>
-                    Send Email
-                </button>
-                <div class="contact-info">
-                    <small><i class="fas fa-mail-bulk"></i> contact.ssvidcc@gmail.com</small>
+            <div class="support-modal">
+                <div class="support-header">
+                    <h3>Contact Support</h3>
+                    <button class="close-btn" id="close-support">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="support-content">
+                    <div class="support-title">
+                        <h2>Need help?</h2>
+                        <p>Describe your issue and we'll reply as soon as possible.</p>
+                    </div>
+                    <div class="support-form">
+                        <label for="support-message">YOUR MESSAGE <span class="required">*</span></label>
+                        <textarea
+                            id="support-message"
+                            placeholder="Example: I have an issue with subtitle generation..."
+                            rows="6"
+                            required
+                        ></textarea>
+                        <div class="validation-tooltip" id="validation-tooltip">Please fill out this field.</div>
+                        <button class="send-btn" id="send-support-email">
+                            <i class="fas fa-envelope"></i>
+                            Send mail
+                        </button>
+                        <p class="response-time">We typically respond within 24 hours.</p>
+                    </div>
                 </div>
             </div>
         </div>

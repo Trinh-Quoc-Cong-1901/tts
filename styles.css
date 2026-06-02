@@ -990,12 +990,12 @@ body {
 }
 
 .support-toggle {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #3b82f6;
   color: white;
   padding: 12px 16px;
   border-radius: 25px;
   cursor: pointer;
-  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
   transition: all 0.3s ease;
   display: flex;
   align-items: center;
@@ -1008,8 +1008,8 @@ body {
 
 .support-toggle:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 25px rgba(102, 126, 234, 0.6);
-  background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+  background: #2563eb;
 }
 
 .support-toggle i {
@@ -1021,94 +1021,246 @@ body {
 }
 
 .support-panel {
-  position: absolute;
-  bottom: 70px;
-  right: 0;
-  width: 320px;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
-  border: 1px solid var(--border-color);
-  transform: translateY(20px);
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.5);
   opacity: 0;
   visibility: hidden;
   transition: all 0.3s ease;
-  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1001;
 }
 
 .support-panel.open {
-  transform: translateY(0);
   opacity: 1;
   visibility: visible;
 }
 
+.support-modal {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow: hidden;
+  transform: scale(0.9);
+  transition: transform 0.3s ease;
+}
+
+.support-panel.open .support-modal {
+  transform: scale(1);
+}
+
 .support-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 16px 20px;
+  background: #ffffff;
+  padding: 20px 24px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  border-bottom: 1px solid #e5e7eb;
 }
 
-.support-header h4 {
+.support-header h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  color: #111827;
 }
 
 .close-btn {
   background: none;
   border: none;
-  color: white;
-  font-size: 16px;
+  color: #6b7280;
+  font-size: 20px;
   cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
+  padding: 8px;
+  border-radius: 6px;
   transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .close-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: #f3f4f6;
+  color: #374151;
 }
 
 .support-content {
-  padding: 20px;
-  text-align: center;
+  padding: 24px;
 }
 
-.support-content p {
-  margin: 0 0 16px 0;
-  color: var(--text-color);
+.support-title h2 {
+  margin: 0 0 8px 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.support-title p {
+  margin: 0 0 24px 0;
+  color: #6b7280;
   line-height: 1.5;
-  font-size: 14px;
+  font-size: 16px;
 }
 
-.email-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+.support-form label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.required {
+  color: #ef4444;
+}
+
+.support-form textarea {
+  width: 100%;
+  min-height: 120px;
+  padding: 12px 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-family: var(--font-family);
+  font-size: 14px;
+  line-height: 1.5;
+  color: #111827;
+  background: #ffffff;
+  resize: vertical;
+  transition: border-color 0.2s ease;
+  box-sizing: border-box;
+}
+
+.support-form textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.support-form textarea::placeholder {
+  color: #9ca3af;
+}
+
+.validation-tooltip {
+  display: none;
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #dc2626;
+}
+
+.send-btn {
+  background: #1e293b;
   color: white;
   border: none;
-  padding: 12px 24px;
+  padding: 14px 24px;
   border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 16px;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   width: 100%;
-  margin-bottom: 12px;
+  margin: 16px 0;
 }
 
-.email-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-  background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+.send-btn:hover {
+  background: #0f172a;
+}
+
+.send-btn:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+}
+
+.response-time {
+  margin: 0;
+  font-size: 14px;
+  color: #6b7280;
+  text-align: center;
+}
+
+/* Dark Theme Support Widget */
+[data-theme="dark"] .support-modal {
+  background: #1f2937;
+}
+
+[data-theme="dark"] .support-header {
+  background: #1f2937;
+  border-bottom-color: #374151;
+}
+
+[data-theme="dark"] .support-header h3 {
+  color: #f9fafb;
+}
+
+[data-theme="dark"] .close-btn {
+  color: #9ca3af;
+}
+
+[data-theme="dark"] .close-btn:hover {
+  background: #374151;
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .support-title h2 {
+  color: #f9fafb;
+}
+
+[data-theme="dark"] .support-title p {
+  color: #d1d5db;
+}
+
+[data-theme="dark"] .support-form label {
+  color: #9ca3af;
+}
+
+[data-theme="dark"] .support-form textarea {
+  background: #111827;
+  border-color: #374151;
+  color: #f9fafb;
+}
+
+[data-theme="dark"] .support-form textarea:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+[data-theme="dark"] .support-form textarea::placeholder {
+  color: #6b7280;
+}
+
+[data-theme="dark"] .validation-tooltip {
+  background: #451a03;
+  border-color: #dc2626;
+  color: #fca5a5;
+}
+
+[data-theme="dark"] .send-btn {
+  background: #1e293b;
+}
+
+[data-theme="dark"] .send-btn:hover {
+  background: #0f172a;
+}
+
+[data-theme="dark"] .response-time {
+  color: #9ca3af;
 }
 
 .contact-info {
