@@ -135,10 +135,14 @@ jobs:
             find "$RUN_DIR" -type d -exec chmod 755 {} + 2>/dev/null || true
             find "$RUN_DIR" -type f -exec chmod 644 {} + 2>/dev/null || true
 
-            # Set group ownership for web server
+            # Set group ownership for web server (if user has permission)
             if id -nG "$USER" | grep -qw "$DEPLOY_GROUP" 2>/dev/null; then
               echo "👥 Setting group ownership to $DEPLOY_GROUP..."
-              chgrp -R "$DEPLOY_GROUP" "$RUN_DIR" 2>/dev/null || true
+              chgrp -R "$DEPLOY_GROUP" "$RUN_DIR" 2>/dev/null || {
+                echo "⚠️ Cannot set group ownership to $DEPLOY_GROUP (insufficient permissions)"
+              }
+            else
+              echo "ℹ️ User $(whoami) not in group $DEPLOY_GROUP, skipping group ownership change"
             fi
 
             # Deploy Node.js application
@@ -146,38 +150,44 @@ jobs:
             echo "📋 Installing dependencies..."
             npm ci --production --silent --no-audit --no-fund
 
-            # NUCLEAR OPTION: Completely reset PM2 environment
-            echo "🔧 AGGRESSIVE PM2 cleanup..."
+            # PM2 cleanup (user-level only)
+            echo "🔧 PM2 cleanup for user $(whoami)..."
 
-            # Give gitdeploy full sudo access for deployment
-            echo "${USER} ALL=(ALL) NOPASSWD: ALL" | sudo tee /etc/sudoers.d/deploy-user > /dev/null
+            # Stop PM2 processes for current user
+            echo "💥 Stopping PM2 processes for current user..."
+            pm2 kill || true
+            pm2 delete all || true
 
-            # Nuclear option 1: Kill ALL PM2 processes
-            echo "💥 Killing ALL PM2 processes system-wide..."
-            sudo pkill -f "PM2" || true
-            sudo pkill -f "pm2" || true
-            sudo pkill -f "node.*server.js" || true
+            # Kill any remaining Node.js processes owned by this user
+            echo "💥 Cleaning up user Node.js processes..."
+            pkill -f "node.*server.js" -u "$(whoami)" || true
+            pkill -f "PM2" -u "$(whoami)" || true
 
-            # Nuclear option 2: Kill port 3000 processes multiple times
-            echo "💥 Aggressively killing port 3000..."
-            for i in {1..5}; do
-              sudo lsof -ti:3000 | xargs -r sudo kill -9 || true
-              sleep 1
-            done
+            # Check if port 3000 is occupied by our processes
+            echo "🔍 Checking port 3000..."
+            OCCUPIED_PID=$(lsof -ti:3000 2>/dev/null | head -1 || echo "")
+            if [ -n "$OCCUPIED_PID" ]; then
+              echo "⚠️ Port 3000 occupied by PID $OCCUPIED_PID"
+              # Only kill if it's owned by current user
+              if ps -o user= -p "$OCCUPIED_PID" 2>/dev/null | grep -q "$(whoami)"; then
+                echo "💥 Killing our process on port 3000..."
+                kill -9 "$OCCUPIED_PID" || true
+                sleep 2
+              else
+                echo "❌ Port 3000 occupied by another user's process. Cannot kill."
+                ps -o pid,user,cmd -p "$OCCUPIED_PID" 2>/dev/null || true
+                exit 1
+              fi
+            fi
 
-            # Nuclear option 3: Stop system services if needed
-            sudo systemctl stop pm2-root || true
-            sudo systemctl stop pm2 || true
+            # Clean up user PM2 runtime directory
+            rm -rf ~/.pm2 || true
 
-            # Clean up PM2 runtime directories
-            sudo rm -rf /root/.pm2 || true
-            sudo rm -rf /home/gitdeploy/.pm2 || true
-
-            # Final port verification (must be empty)
+            # Final port verification
             echo "🔍 Final port verification..."
-            if sudo netstat -tulpn | grep :3000; then
-              echo "❌ CRITICAL: Port 3000 still occupied after nuclear cleanup!"
-              sudo netstat -tulpn | grep :3000
+            if lsof -ti:3000 >/dev/null 2>&1; then
+              echo "❌ CRITICAL: Port 3000 still occupied!"
+              lsof -i:3000 2>/dev/null || echo "Cannot get port details"
               exit 1
             fi
 
