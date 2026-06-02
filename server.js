@@ -4,6 +4,8 @@ const path = require('path');
 const fs = require('fs');
 const gtts = require('node-gtts');
 const AzureTTS = require('./azure-tts-integration');
+const TextChunker = require('./text-chunker');
+const AudioMerger = require('./audio-merger');
 
 // Load environment variables
 require('dotenv').config();
@@ -54,9 +56,40 @@ if (process.env.AZURE_TTS_SUBSCRIPTION_KEY && process.env.USE_AZURE_TTS === 'tru
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Simple rate limiting to prevent abuse
+const rateLimitMap = new Map();
+function rateLimit(req, res, next) {
+    const clientIP = req.ip || req.connection.remoteAddress || 'unknown';
+    const now = Date.now();
+
+    if (!rateLimitMap.has(clientIP)) {
+        rateLimitMap.set(clientIP, { requests: [], lastCleanup: now });
+    }
+
+    const clientData = rateLimitMap.get(clientIP);
+
+    // Clean old requests (older than 1 minute)
+    clientData.requests = clientData.requests.filter(time => now - time < 60000);
+
+    // Allow max 20 requests per minute for regular, 5 for long text
+    const isLongEndpoint = req.path.includes('generate-long');
+    const maxRequests = isLongEndpoint ? 5 : 20;
+
+    if (clientData.requests.length >= maxRequests) {
+        return res.status(429).json({
+            success: false,
+            message: `Rate limit exceeded. Max ${maxRequests} requests per minute for ${isLongEndpoint ? 'long text' : 'regular'} processing.`
+        });
+    }
+
+    clientData.requests.push(now);
+    next();
+}
+
 // Middleware
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
+app.use('/api/tts', rateLimit); // Apply rate limiting to TTS endpoints only
 // Serve static files but exclude index.html to allow custom rendering
 app.use(express.static('.', { index: false }));
 
@@ -202,7 +235,7 @@ app.post('/api/tts/generate', async (req, res) => {
         if (text.length > 5000) {
             return res.status(400).json({
                 success: false,
-                message: 'Text too long (max 5000 characters)'
+                message: `Text too long for regular processing (${text.length} characters). Please use the long text processing feature for texts over 5000 characters.`
             });
         }
 
@@ -340,6 +373,352 @@ app.post('/api/tts/generate', async (req, res) => {
         });
     }
 });
+
+// Initialize text chunker and audio merger
+const textChunker = new TextChunker(4500); // 4500 chars per chunk
+const audioMerger = new AudioMerger();
+
+// Cleanup old temp files on startup
+function cleanupOldTempFiles() {
+    const tempDir = path.join(__dirname, 'temp');
+    if (!fs.existsSync(tempDir)) return;
+
+    const files = fs.readdirSync(tempDir);
+    const cutoffTime = Date.now() - (2 * 60 * 60 * 1000); // 2 hours ago
+
+    let cleaned = 0;
+    files.forEach(file => {
+        const filePath = path.join(tempDir, file);
+        try {
+            const stats = fs.statSync(filePath);
+            if (stats.mtime.getTime() < cutoffTime) {
+                fs.unlinkSync(filePath);
+                cleaned++;
+            }
+        } catch (error) {
+            // File already deleted or inaccessible, ignore
+        }
+    });
+
+    if (cleaned > 0) {
+        console.log(`🧹 Cleaned up ${cleaned} old temp files`);
+    }
+}
+
+// Run cleanup on startup
+cleanupOldTempFiles();
+
+// Schedule periodic cleanup every 30 minutes
+setInterval(cleanupOldTempFiles, 30 * 60 * 1000);
+
+// Enhanced TTS endpoint for long text processing
+app.post('/api/tts/generate-long', async (req, res) => {
+    try {
+        const {
+            text,
+            language = 'en-US',
+            voice,
+            voiceName,
+            gender,
+            speed = 0,
+            pitch = 0
+        } = req.body;
+
+        if (!text || text.trim().length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Text is required'
+            });
+        }
+
+        // For short text, redirect to regular endpoint
+        if (text.length <= 5000) {
+            console.log('Text is short, using regular TTS endpoint');
+            return handleRegularTTS(req, res);
+        }
+
+        console.log(`Starting long text TTS: ${text.length} characters`);
+
+        // Analyze text and create chunks
+        const analysis = textChunker.analyzeText(text);
+        console.log('Text analysis:', analysis);
+
+        const chunks = textChunker.chunkText(text);
+        console.log(`Created ${chunks.length} chunks for processing`);
+
+        // Simple validation for chunks
+        if (!chunks || chunks.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Text chunking failed: No chunks generated'
+            });
+        }
+
+        // Set response headers for streaming (if needed)
+        res.setHeader('Content-Type', 'application/json');
+
+        // Process each chunk to generate audio
+        const audioChunks = [];
+        const totalChunks = chunks.length;
+
+        console.log(`Generating audio for ${totalChunks} chunks...`);
+
+        for (let i = 0; i < chunks.length; i++) {
+            const chunk = chunks[i];
+            console.log(`Processing chunk ${i + 1}/${totalChunks} (${chunk.length} chars, method: ${chunk.splitMethod})`);
+
+            try {
+                // Generate audio for this chunk using existing TTS logic
+                const audioBuffer = await generateAudioForChunk(
+                    chunk.text,
+                    language,
+                    voice,
+                    voiceName,
+                    gender,
+                    speed,
+                    pitch
+                );
+
+                audioChunks.push({
+                    buffer: audioBuffer,
+                    index: chunk.index,
+                    chunkInfo: {
+                        length: chunk.length,
+                        splitMethod: chunk.splitMethod
+                    }
+                });
+
+                console.log(`  Chunk ${i + 1} completed: ${audioBuffer.length} bytes`);
+
+            } catch (error) {
+                console.error(`Error generating audio for chunk ${i + 1}:`, error);
+                return res.status(500).json({
+                    success: false,
+                    message: `Audio generation failed at chunk ${i + 1}: ${error.message}`
+                });
+            }
+        }
+
+        // Validate audio chunks before merging
+        const audioValidation = audioMerger.validateAudioChunks(audioChunks);
+        if (!audioValidation.isValid) {
+            return res.status(500).json({
+                success: false,
+                message: 'Audio validation failed: ' + audioValidation.issues.join(', ')
+            });
+        }
+
+        console.log(`Merging ${audioChunks.length} audio chunks...`);
+        console.log('Audio statistics:', audioValidation.statistics);
+
+        // Merge all audio chunks
+        const mergedAudioBuffer = await audioMerger.mergeAudioBuffers(audioChunks, {
+            audioCodec: 'libmp3lame',
+            bitrate: '128k',
+            sampleRate: 24000
+        });
+
+        console.log(`Audio merging completed: ${mergedAudioBuffer.length} bytes`);
+
+        // Convert to base64 for response
+        const audioBase64 = mergedAudioBuffer.toString('base64');
+
+        // Generate filename
+        const timestamp = Date.now();
+        const filename = `tts_long_${voiceName}_${timestamp}.mp3`;
+
+        // Send response
+        res.json({
+            success: true,
+            audio: audioBase64,
+            contentType: 'audio/mpeg',
+            filename,
+            voiceUsed: {
+                id: voice,
+                name: voiceName,
+                language,
+                gender
+            },
+            settings: {
+                speed,
+                pitch
+            },
+            processing: {
+                originalLength: text.length,
+                chunksUsed: chunks.length,
+                chunkingMethods: chunks.map(c => c.splitMethod),
+                audioStatistics: audioValidation.statistics,
+                finalAudioSize: mergedAudioBuffer.length
+            },
+            engine: azureTTS ? 'Azure TTS' : 'Google TTS (Fallback)'
+        });
+
+    } catch (error) {
+        console.error('Long TTS Generation Error:', error);
+        res.status(500).json({
+            success: false,
+            message: `Long text processing failed: ${error.message}`
+        });
+    }
+});
+
+// Helper function to generate audio for a single chunk
+async function generateAudioForChunk(text, language, voice, voiceName, gender, speed, pitch) {
+    const timestamp = Date.now();
+    const outputPath = path.join(__dirname, 'temp', `chunk_audio_${timestamp}_${Math.random().toString(36).substring(7)}.mp3`);
+
+    try {
+        if (azureTTS && voice) {
+            // Use Azure TTS
+            console.log(`    Using Azure TTS for chunk`);
+            const audioBuffer = await azureTTS.generateSpeech(text, voice, speed, pitch);
+            return audioBuffer;
+
+        } else {
+            // Use Google TTS as fallback
+            const langCode = extractLanguageCode(language);
+            console.log(`    Using Google TTS fallback for chunk (${langCode})`);
+
+            return new Promise((resolve, reject) => {
+                const gTTSInstance = gtts(langCode);
+
+                gTTSInstance.save(outputPath, text, function() {
+                    if (!fs.existsSync(outputPath)) {
+                        return reject(new Error('Audio file not generated by Google TTS'));
+                    }
+
+                    try {
+                        const audioBuffer = fs.readFileSync(outputPath);
+
+                        // Clean up temp file
+                        setTimeout(() => {
+                            if (fs.existsSync(outputPath)) {
+                                fs.unlinkSync(outputPath);
+                            }
+                        }, 5000);
+
+                        resolve(audioBuffer);
+
+                    } catch (readError) {
+                        reject(new Error('Error reading generated audio file'));
+                    }
+                });
+            });
+        }
+    } catch (error) {
+        // Clean up temp file on error
+        if (fs.existsSync(outputPath)) {
+            fs.unlinkSync(outputPath);
+        }
+        throw error;
+    }
+}
+
+// Helper function to handle regular TTS (redirect to existing endpoint logic)
+async function handleRegularTTS(req, res) {
+    // This essentially duplicates the logic from the regular /api/tts/generate endpoint
+    // We do this to avoid code duplication while maintaining the same interface
+    const {
+        text,
+        language = 'en-US',
+        voice,
+        voiceName,
+        gender,
+        speed = 0,
+        pitch = 0,
+        isPreview = false
+    } = req.body;
+
+    if (text.length > 5000) {
+        return res.status(400).json({
+            success: false,
+            message: `Text too long for regular processing (${text.length} characters). Long text processing is available for texts over 5000 characters.`
+        });
+    }
+
+    const timestamp = Date.now();
+    const outputPath = path.join(__dirname, 'temp', `audio_${timestamp}.mp3`);
+
+    // Create temp directory if it doesn't exist
+    const tempDir = path.join(__dirname, 'temp');
+    if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true });
+    }
+
+    console.log(`Generating regular TTS: ${language}, Voice: ${voiceName}, Text length: ${text.length}`);
+
+    try {
+        let audioBuffer;
+
+        if (azureTTS && voice) {
+            // Use Azure TTS
+            console.log(`Using Azure TTS with voice: ${voice}`);
+            audioBuffer = await azureTTS.generateSpeech(text, voice, speed, pitch);
+
+        } else {
+            // Use Google TTS as fallback
+            const langCode = extractLanguageCode(language);
+            console.log(`Using Google TTS fallback with language: ${langCode}`);
+
+            audioBuffer = await new Promise((resolve, reject) => {
+                const gTTSInstance = gtts(langCode);
+
+                gTTSInstance.save(outputPath, text, function() {
+                    if (!fs.existsSync(outputPath)) {
+                        return reject(new Error('Audio file not generated'));
+                    }
+
+                    try {
+                        const buffer = fs.readFileSync(outputPath);
+
+                        // Clean up temp file
+                        setTimeout(() => {
+                            if (fs.existsSync(outputPath)) {
+                                fs.unlinkSync(outputPath);
+                            }
+                        }, 30000);
+
+                        resolve(buffer);
+
+                    } catch (readError) {
+                        reject(new Error('Error reading audio file'));
+                    }
+                });
+            });
+        }
+
+        const audioBase64 = audioBuffer.toString('base64');
+        const filename = isPreview
+            ? `preview_${voiceName}_${timestamp}.mp3`
+            : `tts_${voiceName}_${timestamp}.mp3`;
+
+        res.json({
+            success: true,
+            audio: audioBase64,
+            contentType: 'audio/mpeg',
+            filename,
+            voiceUsed: {
+                id: voice,
+                name: voiceName,
+                language,
+                gender
+            },
+            settings: {
+                speed,
+                pitch,
+                isPreview
+            },
+            engine: azureTTS ? 'Azure TTS' : 'Google TTS (Fallback)'
+        });
+
+    } catch (error) {
+        console.error('Regular TTS Error:', error);
+        res.status(500).json({
+            success: false,
+            message: error.message || 'TTS generation failed'
+        });
+    }
+}
 
 // Helper function to extract language code for gTTS
 function extractLanguageCode(language) {

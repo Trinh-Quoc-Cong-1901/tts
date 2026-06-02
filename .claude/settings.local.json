@@ -26,7 +26,9 @@
       "Bash(git reset *)",
       "Bash(git status *)",
       "Bash(lsof -ti:3000)",
-      "Bash(xargs kill -9)"
+      "Bash(xargs kill -9)",
+      "Bash(PORT=3001 node *)",
+      "Bash(python3 *)"
     ]
   }
 }

@@ -492,15 +492,26 @@ function updateCharacterCount() {
     const charCount = text.length;
     const lineCount = text.split('\n').length;
 
-    elements.charCount.textContent = `${charCount} characters (${lineCount} lines)`;
+    // Basic character count display
+    let displayText = `${charCount.toLocaleString()} characters (${lineCount} lines)`;
 
-    // Color coding
-    if (charCount > 4000) {
-        elements.charCount.style.color = 'var(--error-color)';
+    // Add chunk information for long text
+    if (charCount > 5000) {
+        const estimatedChunks = Math.ceil(charCount / 4500);
+        displayText += ` → Will be split into ${estimatedChunks} chunks`;
+    }
+
+    elements.charCount.textContent = displayText;
+
+    // Enhanced color coding for long text support
+    if (charCount > 5000) {
+        elements.charCount.style.color = 'var(--accent-primary)'; // Blue for long text (supported)
+    } else if (charCount > 4000) {
+        elements.charCount.style.color = 'var(--error-color)'; // Red for approaching limit
     } else if (charCount > 3000) {
-        elements.charCount.style.color = 'var(--warning-color)';
+        elements.charCount.style.color = 'var(--warning-color)'; // Orange for warning
     } else {
-        elements.charCount.style.color = 'var(--text-muted)';
+        elements.charCount.style.color = 'var(--text-muted)'; // Gray for normal
     }
 }
 
@@ -521,10 +532,13 @@ function updateButtonStates() {
     elements.generateBtn.disabled = !canAct;
 }
 
-function setGeneratingState(isGenerating) {
+function setGeneratingState(isGenerating, customMessage = null) {
     state.isGenerating = isGenerating;
 
     const buttons = [elements.previewBtn, elements.generateBtn];
+    const currentText = elements.textInput.value;
+    const isLongText = currentText.length > 5000;
+
     buttons.forEach(btn => {
         const icon = btn.querySelector('i');
         const text = btn.querySelector('.btn-text') || btn.lastChild;
@@ -532,7 +546,20 @@ function setGeneratingState(isGenerating) {
         if (isGenerating) {
             icon.className = 'fas fa-spinner fa-spin';
             if (text.textContent) {
-                text.textContent = text.textContent.includes('Preview') ? 'Generating...' : 'Generating...';
+                let loadingText;
+
+                if (customMessage) {
+                    loadingText = customMessage;
+                } else if (btn.id === 'preview-btn') {
+                    loadingText = 'Generating...';
+                } else if (isLongText) {
+                    const estimatedChunks = Math.ceil(currentText.length / 4500);
+                    loadingText = `Processing ${estimatedChunks} chunks...`;
+                } else {
+                    loadingText = 'Generating...';
+                }
+
+                text.textContent = loadingText;
             }
         } else {
             icon.className = btn.id === 'preview-btn' ? 'fas fa-play' : 'fas fa-bolt';
@@ -620,7 +647,8 @@ async function handlePreview() {
         }
     } catch (error) {
         console.error('Preview error:', error);
-        showMessage('error', error.message || 'Preview failed. Please try again.');
+        const errorMessage = handleTTSError(error, text.length, true);
+        showMessage('error', errorMessage);
     } finally {
         setGeneratingState(false);
         setTimeout(hideMessage, 3000);
@@ -651,7 +679,8 @@ async function handleGenerate() {
         }
     } catch (error) {
         console.error('Generation error:', error);
-        showMessage('error', error.message || 'Generation failed. Please try again.');
+        const errorMessage = handleTTSError(error, text.length, false);
+        showMessage('error', errorMessage);
     } finally {
         setGeneratingState(false);
         setTimeout(hideMessage, 3000);
@@ -662,6 +691,15 @@ async function generateTTS(text, voice, isPreview = false) {
     const language = elements.voiceLanguage.value;
     const speed = parseInt(elements.speedRange.value);
     const pitch = parseInt(elements.pitchRange.value);
+
+    const isLongText = text.length > 5000 && !isPreview; // Don't use long endpoint for previews
+    const endpoint = isLongText ? '/api/tts/generate-long' : '/api/tts/generate';
+
+    // Show appropriate loading message
+    if (isLongText) {
+        const estimatedChunks = Math.ceil(text.length / 4500);
+        showMessage('info', `Processing ${text.length.toLocaleString()} characters (${estimatedChunks} chunks)...`);
+    }
 
     const requestData = {
         text,
@@ -674,7 +712,9 @@ async function generateTTS(text, voice, isPreview = false) {
         isPreview
     };
 
-    const response = await fetch('/api/tts/generate', {
+    console.log(`Using ${isLongText ? 'long text' : 'regular'} TTS endpoint for ${text.length} characters`);
+
+    const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -687,7 +727,16 @@ async function generateTTS(text, voice, isPreview = false) {
         throw new Error(error.message || 'TTS generation failed');
     }
 
-    return await response.json();
+    const result = await response.json();
+
+    // Show success message with processing info for long text
+    if (isLongText && result.processing) {
+        const { chunksUsed, finalAudioSize, originalLength } = result.processing;
+        const sizeMB = (finalAudioSize / (1024 * 1024)).toFixed(1);
+        showMessage('success', `✅ Processed ${chunksUsed} chunks → Final: ${sizeMB}MB MP3`);
+    }
+
+    return result;
 }
 
 function playAudio(audioBase64) {
@@ -953,6 +1002,42 @@ function loadPreferences() {
 document.addEventListener('change', () => {
     setTimeout(savePreferences, 100);
 });
+
+// Smart error message handling
+function handleTTSError(error, textLength, isPreview) {
+    const errorMessage = error.message || error;
+
+    // Handle specific error cases with helpful suggestions
+    if (errorMessage.includes('Text too long for regular processing')) {
+        if (isPreview) {
+            return 'Preview is limited to shorter text. For long text, use the Generate button which supports unlimited length.';
+        } else {
+            return `Text is ${textLength.toLocaleString()} characters. The system will automatically process long texts - please try again.`;
+        }
+    }
+
+    if (errorMessage.includes('Text chunking failed')) {
+        return `Failed to process long text (${textLength.toLocaleString()} chars). Please check your text formatting and try again.`;
+    }
+
+    if (errorMessage.includes('Audio merging failed')) {
+        return 'Long text processing completed but audio merging failed. Please try again or contact support.';
+    }
+
+    if (errorMessage.includes('Failed to generate speech')) {
+        return 'Voice synthesis failed. Please check your internet connection and try again.';
+    }
+
+    if (errorMessage.includes('Network')) {
+        return 'Network error occurred. Please check your connection and try again.';
+    }
+
+    // Default fallback with context
+    const operation = isPreview ? 'Preview' : 'Generation';
+    const lengthInfo = textLength > 5000 ? ` (${textLength.toLocaleString()} characters)` : '';
+
+    return `${operation} failed${lengthInfo}. ${errorMessage}`;
+}
 
 // Cleanup on page unload
 window.addEventListener('beforeunload', () => {
