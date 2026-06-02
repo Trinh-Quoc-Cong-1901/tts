@@ -1049,3 +1049,147 @@ window.addEventListener('beforeunload', () => {
         state.currentAudio.pause();
     }
 });
+
+// Support Widget Functionality
+class SupportWidget {
+    constructor() {
+        this.supportToggle = document.getElementById('support-toggle');
+        this.supportPanel = document.getElementById('support-panel');
+        this.closeBtn = document.getElementById('close-support');
+        this.emailBtn = document.getElementById('email-support');
+        this.isOpen = false;
+
+        this.init();
+    }
+
+    init() {
+        // Toggle panel
+        this.supportToggle.addEventListener('click', () => {
+            this.togglePanel();
+        });
+
+        // Close panel
+        this.closeBtn.addEventListener('click', () => {
+            this.closePanel();
+        });
+
+        // Email support
+        this.emailBtn.addEventListener('click', () => {
+            this.openEmailClient();
+        });
+
+        // Close when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!document.querySelector('.support-widget').contains(e.target) && this.isOpen) {
+                this.closePanel();
+            }
+        });
+
+        // Close on escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.isOpen) {
+                this.closePanel();
+            }
+        });
+    }
+
+    togglePanel() {
+        if (this.isOpen) {
+            this.closePanel();
+        } else {
+            this.openPanel();
+        }
+    }
+
+    openPanel() {
+        this.supportPanel.classList.add('open');
+        this.isOpen = true;
+
+        // Track analytics if available
+        if (typeof gtag !== 'undefined') {
+            gtag('event', 'support_widget_open', {
+                event_category: 'engagement',
+                event_label: 'support_widget'
+            });
+        }
+    }
+
+    closePanel() {
+        this.supportPanel.classList.remove('open');
+        this.isOpen = false;
+    }
+
+    openEmailClient() {
+        const subject = encodeURIComponent('Support Request - Text-to-Speech.space');
+        const body = encodeURIComponent(`Hi there,
+
+I need help with the Text-to-Speech service.
+
+Issue/Question:
+[Please describe your question or issue here]
+
+Page URL: ${window.location.href}
+Browser: ${navigator.userAgent}
+Timestamp: ${new Date().toISOString()}
+
+Thank you for your assistance!`);
+
+        const emailUrl = `mailto:contact.ssvidcc@gmail.com?subject=${subject}&body=${body}`;
+
+        // Try to open email client
+        try {
+            window.location.href = emailUrl;
+
+            // Track analytics
+            if (typeof gtag !== 'undefined') {
+                gtag('event', 'support_email_click', {
+                    event_category: 'engagement',
+                    event_label: 'email_support'
+                });
+            }
+
+            // Show success message
+            this.showSuccessMessage();
+        } catch (error) {
+            console.warn('Could not open email client:', error);
+            this.showFallbackOptions();
+        }
+    }
+
+    showSuccessMessage() {
+        const originalContent = this.emailBtn.innerHTML;
+        this.emailBtn.innerHTML = '<i class="fas fa-check"></i> Email Client Opening...';
+        this.emailBtn.style.background = '#10b981';
+
+        setTimeout(() => {
+            this.emailBtn.innerHTML = originalContent;
+            this.emailBtn.style.background = '';
+            this.closePanel();
+        }, 2000);
+    }
+
+    showFallbackOptions() {
+        const content = this.supportPanel.querySelector('.support-content');
+        content.innerHTML = `
+            <p>Email client could not be opened automatically.</p>
+            <div class="fallback-options">
+                <p><strong>Please contact us manually:</strong></p>
+                <p>
+                    <i class="fas fa-envelope"></i>
+                    <a href="mailto:contact.ssvidcc@gmail.com" style="color: var(--primary-color);">
+                        contact.ssvidcc@gmail.com
+                    </a>
+                </p>
+                <button class="email-btn" onclick="navigator.clipboard.writeText('contact.ssvidcc@gmail.com').then(() => alert('Email copied to clipboard!'))">
+                    <i class="fas fa-copy"></i>
+                    Copy Email
+                </button>
+            </div>
+        `;
+    }
+}
+
+// Initialize support widget when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    new SupportWidget();
+});
