@@ -168,7 +168,7 @@ function applyTheme() {
 
 // Voice Management
 async function loadVoicesForLanguage() {
-    const selectedLanguage = elements.voiceLanguage.value;
+    const selectedLanguage = elements.voiceLanguage?.value;
 
     // Show loading state
     elements.voiceList.innerHTML = `
@@ -202,7 +202,6 @@ async function loadVoicesForLanguage() {
         resetFilters();
 
         // Auto-select first voice or load saved preference for this language
-        const selectedLanguage = elements.voiceLanguage.value;
         const savedPreferences = getSavedPreferences();
         const savedVoiceForLanguage = savedPreferences.voicesByLanguage?.[selectedLanguage];
 
@@ -216,7 +215,9 @@ async function loadVoicesForLanguage() {
             console.log(`🎤 Auto-selected first voice: ${state.selectedVoice.name} for ${selectedLanguage}`);
 
             // Save this auto-selection as preference
-            saveVoicePreferenceByLanguage(selectedLanguage, state.selectedVoice.id);
+            if (selectedLanguage) {
+                saveVoicePreferenceByLanguage(selectedLanguage, state.selectedVoice.id);
+            }
         } else {
             state.selectedVoice = null;
         }
@@ -333,10 +334,14 @@ function handleVoiceSelection(voiceId) {
     state.selectedVoice = state.filteredVoices.find(v => v.id === voiceId);
 
     // Save voice preference for current language
-    const selectedLanguage = elements.voiceLanguage.value;
-    saveVoicePreferenceByLanguage(selectedLanguage, voiceId);
+    const selectedLanguage = elements.voiceLanguage?.value;
+    if (selectedLanguage) {
+        saveVoicePreferenceByLanguage(selectedLanguage, voiceId);
+    }
 
-    console.log(`🎤 Voice selected: ${state.selectedVoice.name} for ${selectedLanguage}`);
+    if (selectedLanguage && state.selectedVoice) {
+        console.log(`🎤 Voice selected: ${state.selectedVoice.name} for ${selectedLanguage}`);
+    }
 
     renderVoiceList();
     updateButtonStates();
@@ -522,10 +527,11 @@ function updateCharacterCount() {
     let displayText = `${charCount.toLocaleString()} characters (${lineCount} lines)`;
 
     // Add chunk information for long text
-    if (charCount > 5000) {
-        const estimatedChunks = Math.ceil(charCount / 4500);
-        displayText += ` → Will be split into ${estimatedChunks} chunks`;
-    }
+    // Remove chunk information display
+    // if (charCount > 5000) {
+    //     const estimatedChunks = Math.ceil(charCount / 4500);
+    //     displayText += ` → Will be split into ${estimatedChunks} chunks`;
+    // }
 
     elements.charCount.textContent = displayText;
 
@@ -579,8 +585,7 @@ function setGeneratingState(isGenerating, customMessage = null) {
                 } else if (btn.id === 'preview-btn') {
                     loadingText = 'Generating...';
                 } else if (isLongText) {
-                    const estimatedChunks = Math.ceil(currentText.length / 4500);
-                    loadingText = `Processing ${estimatedChunks} chunks...`;
+                    loadingText = 'Processing...';
                 } else {
                     loadingText = 'Generating...';
                 }
@@ -723,8 +728,7 @@ async function generateTTS(text, voice, isPreview = false) {
 
     // Show appropriate loading message
     if (isLongText) {
-        const estimatedChunks = Math.ceil(text.length / 4500);
-        showMessage('info', `Processing ${text.length.toLocaleString()} characters (${estimatedChunks} chunks)...`);
+        showMessage('info', `Processing ${text.length.toLocaleString()} characters...`);
     }
 
     const requestData = {
@@ -757,9 +761,9 @@ async function generateTTS(text, voice, isPreview = false) {
 
     // Show success message with processing info for long text
     if (isLongText && result.processing) {
-        const { chunksUsed, finalAudioSize, originalLength } = result.processing;
+        const { finalAudioSize } = result.processing;
         const sizeMB = (finalAudioSize / (1024 * 1024)).toFixed(1);
-        showMessage('success', `✅ Processed ${chunksUsed} chunks → Final: ${sizeMB}MB MP3`);
+        showMessage('success', `✅ Audio generated → Final: ${sizeMB}MB MP3`);
     }
 
     return result;
