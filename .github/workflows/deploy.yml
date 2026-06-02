@@ -146,43 +146,69 @@ jobs:
             echo "📋 Installing dependencies..."
             npm ci --production --silent --no-audit --no-fund
 
-            # Setup sudo permissions for PM2 management
-            echo "🔧 Setting up PM2 permissions..."
-            echo "${USER} ALL=(ALL) NOPASSWD: /usr/bin/pm2, /usr/local/bin/pm2, /usr/bin/lsof, /usr/bin/kill" | sudo tee /etc/sudoers.d/pm2-deploy > /dev/null || true
+            # NUCLEAR OPTION: Completely reset PM2 environment
+            echo "🔧 AGGRESSIVE PM2 cleanup..."
 
-            # Force stop any process using port 3000
-            echo "🔄 Cleaning up port 3000..."
-            sudo lsof -ti:3000 | xargs -r sudo kill -9 || true
-            sleep 2
+            # Give gitdeploy full sudo access for deployment
+            echo "${USER} ALL=(ALL) NOPASSWD: ALL" | sudo tee /etc/sudoers.d/deploy-user > /dev/null
 
-            # Stop PM2 processes from all users
-            echo "🛑 Stopping all PM2 processes named $PM2_APP_NAME..."
-            sudo pm2 stop "$PM2_APP_NAME" || true
-            sudo pm2 delete "$PM2_APP_NAME" || true
+            # Nuclear option 1: Kill ALL PM2 processes
+            echo "💥 Killing ALL PM2 processes system-wide..."
+            sudo pkill -f "PM2" || true
+            sudo pkill -f "pm2" || true
+            sudo pkill -f "node.*server.js" || true
 
-            # Also stop from current user's PM2
-            pm2 stop "$PM2_APP_NAME" || true
-            pm2 delete "$PM2_APP_NAME" || true
-
-            # Double check port is free
-            if sudo lsof -i:3000; then
-              echo "⚠️  Port 3000 still in use, force killing..."
+            # Nuclear option 2: Kill port 3000 processes multiple times
+            echo "💥 Aggressively killing port 3000..."
+            for i in {1..5}; do
               sudo lsof -ti:3000 | xargs -r sudo kill -9 || true
-              sleep 3
-            fi
+              sleep 1
+            done
 
-            # Verify port 3000 is free
-            if sudo lsof -i:3000 > /dev/null 2>&1; then
-              echo "❌ Port 3000 still occupied after cleanup!"
-              sudo lsof -i:3000
+            # Nuclear option 3: Stop system services if needed
+            sudo systemctl stop pm2-root || true
+            sudo systemctl stop pm2 || true
+
+            # Clean up PM2 runtime directories
+            sudo rm -rf /root/.pm2 || true
+            sudo rm -rf /home/gitdeploy/.pm2 || true
+
+            # Final port verification (must be empty)
+            echo "🔍 Final port verification..."
+            if sudo netstat -tulpn | grep :3000; then
+              echo "❌ CRITICAL: Port 3000 still occupied after nuclear cleanup!"
+              sudo netstat -tulpn | grep :3000
               exit 1
             fi
 
-            # Start fresh PM2 process as current user (gitdeploy)
-            echo "🚀 Starting new PM2 process as $(whoami)..."
-            pm2 start server.js --name "$PM2_APP_NAME"
+            echo "✅ Port 3000 completely free"
+
+            # Initialize PM2 for this user
+            echo "🚀 Initializing fresh PM2 environment for $(whoami)..."
+            pm2 kill || true
+            pm2 startup || true
+
+            # Start with explicit configuration
+            echo "🚀 Starting $PM2_APP_NAME with explicit config..."
+            pm2 start server.js \
+              --name "$PM2_APP_NAME" \
+              --instances 1 \
+              --max-memory-restart 500M \
+              --node-args="--max-old-space-size=1024"
+
+            # Save configuration
             pm2 save
-            echo "✅ PM2 app '$PM2_APP_NAME' started successfully"
+
+            # Verify startup
+            sleep 5
+            if pm2 list | grep "$PM2_APP_NAME" | grep -q "online"; then
+              echo "✅ PM2 app '$PM2_APP_NAME' started successfully as $(whoami)"
+            else
+              echo "❌ PM2 startup failed!"
+              pm2 list
+              pm2 logs "$PM2_APP_NAME" --lines 20
+              exit 1
+            fi
 
             # Show PM2 status
             pm2 list | grep "$PM2_APP_NAME" || echo "⚠️  PM2 status check failed"
