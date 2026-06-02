@@ -146,15 +146,25 @@ jobs:
             echo "📋 Installing dependencies..."
             npm ci --production --silent --no-audit --no-fund
 
-            # Restart PM2 application
+            # Setup sudo permissions for PM2 management
+            echo "🔧 Setting up PM2 permissions..."
+            echo "${USER} ALL=(ALL) NOPASSWD: /usr/bin/pm2, /usr/local/bin/pm2" | sudo tee /etc/sudoers.d/pm2-deploy > /dev/null || true
+
+            # Restart PM2 application with proper permissions
             echo "🔄 Restarting PM2 application..."
-            if pm2 list | grep -q "$PM2_APP_NAME"; then
-              pm2 restart "$PM2_APP_NAME" --update-env
-              echo "✅ PM2 app '$PM2_APP_NAME' restarted"
-            else
-              pm2 start server.js --name "$PM2_APP_NAME"
-              echo "🆕 PM2 app '$PM2_APP_NAME' started"
+
+            # Check if PM2 process exists (may be running as different user)
+            if sudo pm2 list | grep -q "$PM2_APP_NAME"; then
+              echo "📝 Found existing PM2 process, stopping it..."
+              sudo pm2 stop "$PM2_APP_NAME" || true
+              sudo pm2 delete "$PM2_APP_NAME" || true
             fi
+
+            # Start fresh PM2 process as current user (gitdeploy)
+            echo "🚀 Starting new PM2 process..."
+            pm2 start server.js --name "$PM2_APP_NAME"
+            pm2 save
+            echo "✅ PM2 app '$PM2_APP_NAME' started as $(whoami)"
 
             # Show PM2 status
             pm2 list | grep "$PM2_APP_NAME" || echo "⚠️  PM2 status check failed"
@@ -175,14 +185,35 @@ jobs:
           envs: PM2_APP_NAME
           script: |
             # Wait a moment for app to start
-            sleep 3
+            sleep 5
 
             # Check PM2 process status
             if pm2 list | grep "$PM2_APP_NAME" | grep -q "online"; then
               echo "✅ Application is running successfully"
-              pm2 show "$PM2_APP_NAME" | head -20
+              pm2 show "$PM2_APP_NAME" | head -10
             else
               echo "❌ Application failed to start"
               pm2 logs "$PM2_APP_NAME" --lines 10 || true
               exit 1
+            fi
+
+            # Test endpoints
+            echo "🧪 Testing API endpoints..."
+
+            # Test regular endpoint
+            if curl -s -f http://localhost:3000/api/tts/generate > /dev/null; then
+              echo "✅ Regular TTS endpoint working"
+            else
+              echo "⚠️  Regular TTS endpoint failed"
+            fi
+
+            # Test long text endpoint (the one that was failing)
+            if curl -s -f -X POST http://localhost:3000/api/tts/generate-long \
+              -H "Content-Type: application/json" \
+              -d '{"text":"CI/CD test","language":"en-US","voice":"en-US-AriaNeural","voiceName":"Aria","gender":"female"}' > /dev/null; then
+              echo "✅ Long text TTS endpoint working"
+            else
+              echo "❌ Long text TTS endpoint failed"
+              echo "📋 Recent logs:"
+              pm2 logs "$PM2_APP_NAME" --lines 5 || true
             fi
