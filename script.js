@@ -34,7 +34,7 @@ const elements = {
     mobileThemeToggle: document.getElementById('mobile-theme-toggle'),
     mobileUiLanguage: document.getElementById('mobile-ui-language'),
 
-    // Sidebar controls
+    // Sidebar controls - RESTORE ORIGINAL WORKING STRUCTURE
     voiceLanguage: document.getElementById('voice-language'),
     ttsEngine: document.getElementById('tts-engine'),
     genderButtons: document.querySelectorAll('.gender-btn'),
@@ -49,7 +49,6 @@ const elements = {
     // Main content
     textInput: document.getElementById('text-input'),
     charCount: document.getElementById('char-count'),
-    importBtn: document.getElementById('import-file'),
     fileInput: document.getElementById('file-input'),
     messageArea: document.getElementById('message-area'),
     messageIcon: document.querySelector('.message-icon'),
@@ -58,13 +57,17 @@ const elements = {
     generateBtn: document.getElementById('generate-btn'),
     resultsSection: document.getElementById('results-section'),
     audioPlayer: document.getElementById('audio-player'),
-    downloadBtn: document.getElementById('download-btn')
+    downloadBtn: document.getElementById('download-btn'),
+
+    // Voice Settings
+    settingsIconBtn: document.getElementById('settings-icon-btn'),
+    settingsDropdown: document.getElementById('settings-dropdown')
 };
 
 // Voice cache to avoid repeated API calls
 const VOICE_CACHE = {};
 
-// Initialize Application
+// Initialize Application - RESTORE ORIGINAL SIMPLE VERSION
 document.addEventListener('DOMContentLoaded', () => {
     initializeApp();
     setupEventListeners();
@@ -88,7 +91,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initializeApp() {
-    // Set initial values
+    // Set initial values - RESTORE ORIGINAL SIMPLE VERSION
     updateCharacterCount();
     updateSliderValues();
 
@@ -97,6 +100,41 @@ function initializeApp() {
 
     // Apply initial theme
     applyTheme();
+}
+
+// Language Selector Functions
+function handleLanguageChange() {
+    console.log('🌍 Language changed');
+    updateSelectedLanguageDisplay();
+    loadVoicesForLanguage();
+}
+
+function updateSelectedLanguageDisplay() {
+    const select = elements.voiceLanguage;
+    const selectedOption = select?.options[select.selectedIndex];
+
+    if (selectedOption && elements.selectedLanguage) {
+        // Get flag from option text (extract country code)
+        const languageCode = selectedOption.value;
+        const languageName = selectedOption.text;
+
+        // Extract flag code from language code (e.g., en-US -> us)
+        const flagCode = languageCode.split('-')[1]?.toLowerCase() || 'us';
+
+        const flagImg = elements.selectedLanguage.querySelector('.flag-icon');
+        const nameSpan = elements.selectedLanguage.querySelector('.language-name');
+
+        if (flagImg) {
+            flagImg.src = `https://cdnjs.cloudflare.com/ajax/libs/flag-icon-css/3.5.0/flags/4x3/${flagCode}.svg`;
+            flagImg.alt = languageName;
+        }
+
+        if (nameSpan) {
+            nameSpan.textContent = languageName.split('(')[0].trim(); // Remove country part
+        }
+
+        console.log(`🏳️ Updated language display: ${languageName} (${flagCode})`);
+    }
 }
 
 function setupEventListeners() {
@@ -116,7 +154,7 @@ function setupEventListeners() {
         }
     });
 
-    // Sidebar controls
+    // Sidebar controls - RESTORE ORIGINAL EVENT LISTENERS
     elements.voiceLanguage.addEventListener('change', loadVoicesForLanguage);
     elements.ttsEngine.addEventListener('change', handleEngineChange);
     elements.genderButtons.forEach(btn => {
@@ -133,7 +171,7 @@ function setupEventListeners() {
     });
 
     // File import
-    elements.importBtn.addEventListener('click', () => elements.fileInput.click());
+    // Import file functionality removed from UI
     elements.fileInput.addEventListener('change', handleFileImport);
 
     // Action buttons
@@ -333,23 +371,45 @@ function renderVoiceList() {
                           uniqueEngines.length > 1 ||
                           (uniqueEngines.length === 1 && uniqueEngines[0] !== 'azure');
 
-    const voicesHTML = state.filteredVoices.map(voice => `
-        <div class="voice-item ${state.selectedVoice?.id === voice.id ? 'selected' : ''}"
-             data-voice-id="${voice.id}">
-            ${showEngineTags && voice.engine ? `<div class="voice-engine-badge engine-${voice.engine}">${voice.engine.toUpperCase()}</div>` : ''}
-            <div class="voice-info">
-                <div class="voice-name">${voice.name}</div>
-                <div class="voice-details">
-                    <span class="voice-gender ${voice.gender}">${voice.gender.charAt(0).toUpperCase() + voice.gender.slice(1)}</span>
-                    <span>${voice.country}</span>
-                    <span>${voice.locale}</span>
+    const voicesHTML = state.filteredVoices.map(voice => {
+        // Generate avatar based on voice name
+        const avatarSeed = voice.name.replace(/\s+/g, '').toLowerCase();
+        const avatarUrl = `https://api.dicebear.com/7.x/personas/svg?seed=${avatarSeed}&backgroundColor=e0e7ff`;
+
+        // Generate subtitle based on voice characteristics
+        const subtitles = {
+            'Ava': 'Analysis & Commentary',
+            'Andrew': 'Professional & Business',
+            'Emma': 'Storytelling',
+            'Brian': 'News & Documentary',
+            'Christopher': 'Storytelling',
+            'William': 'Storytelling',
+            'Billy Joe': 'Vlogs & Personal Content',
+            'John Luke': 'Analysis & Commentary',
+            'Jenny': 'Professional & Friendly',
+            'Michelle': 'Educational Content'
+        };
+
+        const subtitle = subtitles[voice.name] || 'Natural Voice';
+
+        return `
+            <div class="voice-item ${state.selectedVoice?.id === voice.id ? 'selected' : ''}"
+                 data-voice-id="${voice.id}">
+                <img class="voice-avatar" src="${avatarUrl}" alt="${voice.name}" loading="lazy" />
+                <div class="voice-info">
+                    <div class="voice-name">${voice.name}</div>
+                    <div class="voice-subtitle">${subtitle}</div>
+                    <div class="voice-details">
+                        <span>${voice.gender}</span>
+                        <span>${voice.locale.split('-')[0].toUpperCase()}</span>
+                    </div>
                 </div>
+                <button class="voice-preview" data-voice-id="${voice.id}" title="Preview voice">
+                    <i class="fas fa-play"></i>
+                </button>
             </div>
-            <button class="voice-preview" data-voice-id="${voice.id}">
-                Preview
-            </button>
-        </div>
-    `).join('');
+        `;
+    }).join('');
 
     container.innerHTML = voicesHTML;
 
@@ -368,6 +428,11 @@ function renderVoiceList() {
             handleVoicePreview(btn.dataset.voiceId);
         });
     });
+
+    // Auto-select first voice if none selected
+    if (!state.selectedVoice && state.filteredVoices.length > 0) {
+        handleVoiceSelection(state.filteredVoices[0].id);
+    }
 }
 
 function handleVoiceSelection(voiceId) {
@@ -608,35 +673,16 @@ function setGeneratingState(isGenerating, customMessage = null) {
     state.isGenerating = isGenerating;
 
     const buttons = [elements.previewBtn, elements.generateBtn];
-    const currentText = elements.textInput.value;
-    const isLongText = currentText.length > 5000;
 
     buttons.forEach(btn => {
         const icon = btn.querySelector('i');
-        const text = btn.querySelector('.btn-text') || btn.lastChild;
 
         if (isGenerating) {
+            // Chỉ thay đổi icon, giữ nguyên text
             icon.className = 'fas fa-spinner fa-spin';
-            if (text.textContent) {
-                let loadingText;
-
-                if (customMessage) {
-                    loadingText = customMessage;
-                } else if (btn.id === 'preview-btn') {
-                    loadingText = 'Generating...';
-                } else if (isLongText) {
-                    loadingText = 'Processing...';
-                } else {
-                    loadingText = 'Generating...';
-                }
-
-                text.textContent = loadingText;
-            }
         } else {
+            // Restore icon, text giữ nguyên
             icon.className = btn.id === 'preview-btn' ? 'fas fa-play' : 'fas fa-bolt';
-            if (text.textContent) {
-                text.textContent = btn.id === 'preview-btn' ? 'Preview Audio' : 'Generate Audio';
-            }
         }
     });
 
@@ -1149,6 +1195,24 @@ window.addEventListener('beforeunload', () => {
     }
 });
 
+// Email URL Helper - Desktop: Gmail Web, Mobile: Email App
+function getEmailUrl(to, subject, body) {
+    // Detect mobile device
+    const isMobile = window.innerWidth <= 768 ||
+                     /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+    const encodedSubject = encodeURIComponent(subject);
+    const encodedBody = encodeURIComponent(body);
+
+    if (isMobile) {
+        // Mobile: Use mailto (opens email app)
+        return `mailto:${to}?subject=${encodedSubject}&body=${encodedBody}`;
+    } else {
+        // Desktop: Use Gmail web compose
+        return `https://mail.google.com/mail/?view=cm&fs=1&to=${to}&su=${encodedSubject}&body=${encodedBody}`;
+    }
+}
+
 // Support Widget Functionality
 class SupportWidget {
     constructor() {
@@ -1161,6 +1225,25 @@ class SupportWidget {
         this.isOpen = false;
 
         this.init();
+
+        // Check for pending success popup on page load/focus
+        this.checkAndShowSuccessPopup();
+
+        // Check when user returns to tab
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                setTimeout(() => {
+                    this.checkAndShowSuccessPopup();
+                }, 1000); // Delay to let user settle
+            }
+        });
+
+        // Check on window focus
+        window.addEventListener('focus', () => {
+            setTimeout(() => {
+                this.checkAndShowSuccessPopup();
+            }, 1000);
+        });
     }
 
     init() {
@@ -1223,19 +1306,49 @@ class SupportWidget {
     closePanel() {
         this.supportPanel.classList.remove('open');
         this.isOpen = false;
+
+        // Reset success state and restore original content
+        if (this.isSuccessState && this.originalSupportContent) {
+            const supportContent = this.supportPanel.querySelector('.support-content');
+            supportContent.innerHTML = this.originalSupportContent;
+
+            // Re-initialize references and event listeners
+            this.messageTextarea = document.getElementById('support-message');
+            this.sendBtn = document.getElementById('send-support-email');
+            this.validationTooltip = document.getElementById('validation-tooltip');
+
+            // Clear form and re-attach listeners
+            this.messageTextarea.value = '';
+            this.reAttachFormListeners();
+
+            this.isSuccessState = false;
+            this.originalSupportContent = null;
+        }
+    }
+
+    reAttachFormListeners() {
+        // Re-attach send email listener
+        this.sendBtn.addEventListener('click', () => {
+            this.handleSendEmail();
+        });
+
+        // Re-attach validation hide listener
+        this.messageTextarea.addEventListener('input', () => {
+            this.hideValidation();
+        });
     }
 
     openEmailClient() {
-        const subject = encodeURIComponent('Support Request - Text-to-Speech.space');
-        const body = encodeURIComponent(`[Please describe your question or issue here]
+        const subject = 'Support Request - Text-to-Speech.space';
+        const body = `[Please describe your question or issue here]
 
-Thank you for your assistance!`);
+Thank you for your assistance!`;
 
-        const emailUrl = `mailto:trinhquoccongldb1@gmail.com?subject=${subject}&body=${body}`;
+        const emailUrl = getEmailUrl('trinhquoccongldb1@gmail.com', subject, body);
 
-        // Try to open email client
+        // Try to open email client/web
         try {
-            window.location.href = emailUrl;
+            window.open(emailUrl, '_blank');
 
             // Track analytics
             if (typeof gtag !== 'undefined') {
@@ -1309,16 +1422,16 @@ Thank you for your assistance!`);
     }
 
     openEmailClientWithMessage(userMessage) {
-        const subject = encodeURIComponent('Support Request - Text-to-Speech.space');
-        const body = encodeURIComponent(`${userMessage}
+        const subject = 'Support Request - Text-to-Speech.space';
+        const body = `${userMessage}
 
-Thank you for your assistance!`);
+Thank you for your assistance!`;
 
-        const emailUrl = `mailto:trinhquoccongldb1@gmail.com?subject=${subject}&body=${body}`;
+        const emailUrl = getEmailUrl('trinhquoccongldb1@gmail.com', subject, body);
 
-        // Try to open email client
+        // Try to open email client/web
         try {
-            window.location.href = emailUrl;
+            window.open(emailUrl, '_blank');
 
             // Track analytics
             if (typeof gtag !== 'undefined') {
@@ -1337,20 +1450,192 @@ Thank you for your assistance!`);
     }
 
     showSendSuccess() {
-        const originalContent = this.sendBtn.innerHTML;
-        this.sendBtn.innerHTML = '<i class="fas fa-check"></i> Email Client Opening...';
-        this.sendBtn.style.background = '#10b981';
+        // Mark that email was sent - will show popup when user returns
+        localStorage.setItem('emailSent', 'true');
+        localStorage.setItem('emailSentTime', Date.now().toString());
 
+        // Close support panel immediately
+        this.closePanel();
+    }
+
+    checkAndShowSuccessPopup() {
+        const emailSent = localStorage.getItem('emailSent');
+        const emailSentTime = localStorage.getItem('emailSentTime');
+
+        if (emailSent === 'true') {
+            // Check if not too old (within 5 minutes)
+            const now = Date.now();
+            const sentTime = parseInt(emailSentTime);
+            if (now - sentTime < 300000) { // 5 minutes
+                this.showSuccessPopup();
+            }
+
+            // Clear the flag
+            localStorage.removeItem('emailSent');
+            localStorage.removeItem('emailSentTime');
+        }
+    }
+
+    showSuccessPopup() {
+        // Prevent duplicate popups
+        const existingPopup = document.querySelector('.success-popup-overlay');
+        if (existingPopup) {
+            existingPopup.remove();
+        }
+
+        // Create overlay popup
+        const popup = document.createElement('div');
+        popup.className = 'success-popup-overlay';
+        popup.innerHTML = `
+            <div class="success-popup">
+                <div class="success-message">
+                    <div class="success-icon">
+                        <div class="checkmark-circle">
+                            <i class="fas fa-check"></i>
+                        </div>
+                    </div>
+                    <h2 class="success-title">Almost there!</h2>
+                    <p class="success-text">After you <strong>send the email</strong>, we'll get back to you within <strong>24 hours</strong>.</p>
+                    <button class="success-close-btn">
+                        <i class="fas fa-times"></i>
+                        Close
+                    </button>
+                </div>
+            </div>
+        `;
+
+        // Close button handler
+        const closeBtn = popup.querySelector('.success-close-btn');
+        closeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            popup.remove();
+        });
+
+        // Close on outside click (click overlay, not popup content)
+        popup.addEventListener('click', (e) => {
+            if (e.target === popup) {
+                popup.remove();
+            }
+        });
+
+        document.body.appendChild(popup);
+
+        // Show with animation
         setTimeout(() => {
-            this.sendBtn.innerHTML = originalContent;
-            this.sendBtn.style.background = '';
-            this.messageTextarea.value = '';
-            this.closePanel();
-        }, 2000);
+            popup.classList.add('show');
+        }, 10);
     }
 }
 
 // Initialize support widget when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     new SupportWidget();
+});
+
+// Voice Settings Logic
+class VoiceSettings {
+    constructor() {
+        this.iconBtn = document.getElementById('settings-icon-btn');
+        this.dropdown = document.getElementById('settings-dropdown');
+
+        // Sliders
+        this.speedSlider = document.getElementById('speed-slider');
+        this.pitchSlider = document.getElementById('pitch-slider');
+        this.volumeSlider = document.getElementById('volume-slider');
+
+        // Display values (bên ngoài)
+        this.speedDisplay = document.getElementById('speed-display');
+        this.pitchDisplay = document.getElementById('pitch-display');
+        this.volumeDisplay = document.getElementById('volume-display');
+
+        this.isOpen = false;
+        this.initEventListeners();
+    }
+
+    initEventListeners() {
+        // Toggle dropdown
+        this.iconBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.toggleDropdown();
+        });
+
+        // Close when clicking outside
+        document.addEventListener('click', (e) => {
+            if (this.isOpen &&
+                !this.dropdown.contains(e.target) &&
+                !this.iconBtn.contains(e.target)) {
+                this.closeDropdown();
+            }
+        });
+
+        // Slider events - cập nhật display values khi thay đổi
+        this.speedSlider.addEventListener('input', () => this.updateSpeed());
+        this.pitchSlider.addEventListener('input', () => this.updatePitch());
+        this.volumeSlider.addEventListener('input', () => this.updateVolume());
+
+        // ESC key to close
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.isOpen) {
+                this.closeDropdown();
+            }
+        });
+    }
+
+    toggleDropdown() {
+        if (this.isOpen) {
+            this.closeDropdown();
+        } else {
+            this.openDropdown();
+        }
+    }
+
+    openDropdown() {
+        this.iconBtn.classList.add('active');
+        this.dropdown.classList.add('open');
+        this.isOpen = true;
+    }
+
+    closeDropdown() {
+        this.iconBtn.classList.remove('active');
+        this.dropdown.classList.remove('open');
+        this.isOpen = false;
+    }
+
+    updateSpeed() {
+        const value = parseFloat(this.speedSlider.value);
+        this.speedDisplay.textContent = value.toFixed(1) + 'x';
+
+        // Update the actual speed control if exists
+        if (elements.speedRange) {
+            const speedPercent = ((value - 1) * 100); // Convert to percentage for original slider
+            elements.speedRange.value = speedPercent;
+            if (elements.speedValue) {
+                elements.speedValue.textContent = value.toFixed(1) + 'x';
+            }
+        }
+    }
+
+    updatePitch() {
+        const value = parseFloat(this.pitchSlider.value);
+        this.pitchDisplay.textContent = value.toFixed(1) + 'x';
+
+        // Update the actual pitch control if exists
+        if (elements.pitchRange) {
+            const pitchPercent = ((value - 1) * 100); // Convert to percentage for original slider
+            elements.pitchRange.value = pitchPercent;
+            if (elements.pitchValue) {
+                elements.pitchValue.textContent = value.toFixed(1) + 'x';
+            }
+        }
+    }
+
+    updateVolume() {
+        const value = parseInt(this.volumeSlider.value);
+        this.volumeDisplay.textContent = value + '%';
+    }
+}
+
+// Initialize voice settings when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    new VoiceSettings();
 });
