@@ -9,7 +9,7 @@ module.exports = {
     node_args: '--max-old-space-size=1024',
     env: {
       NODE_ENV: 'production',
-      PORT: 3000
+      PORT: process.env.PORT || 3000
     },
     error_file: './logs/err.log',
     out_file: './logs/out.log',

@@ -32,7 +32,8 @@
       "Bash(pip3 install *)",
       "Bash(brew install *)",
       "Bash(edge-tts --list-voices)",
-      "Bash(chmod +x *)"
+      "Bash(chmod +x *)",
+      "Bash(./emergency-cleanup.sh *)"
     ]
   }
 }

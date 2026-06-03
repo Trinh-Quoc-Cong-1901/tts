@@ -92,7 +92,7 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
-          envs: PROJECT_NAME,PROJECT_ROOT,RUN_DIR,DEPLOY_USER,DEPLOY_GROUP,ARTIFACT_NAME,PM2_APP_NAME
+          envs: PROJECT_NAME,PROJECT_ROOT,RUN_DIR,DEPLOY_USER,DEPLOY_GROUP,ARTIFACT_NAME,PM2_APP_NAME,PORT
           script: |
             set -euo pipefail
 
@@ -103,6 +103,10 @@ jobs:
 
             echo "🚀 Starting deployment for ${PROJECT_NAME}..."
             TMP_TAR="/tmp/${ARTIFACT_NAME}"
+
+            # Set default PORT if not provided
+            PORT=${PORT:-3000}
+            echo "🎯 Target port: $PORT"
 
             # Validate artifact exists
             [ -f "$TMP_TAR" ] || {
@@ -163,26 +167,61 @@ jobs:
             pm2 kill || true
             pm2 delete all || true
 
-            # Force kill any remaining processes on port 3000
+            # Force kill any remaining processes on port 3000 (AGGRESSIVE CLEANUP)
             echo "🔍 Checking for processes on port 3000..."
-            PORT_PID=$(lsof -ti:3000 2>/dev/null || true)
-            if [ ! -z "$PORT_PID" ]; then
-              echo "💀 Force killing process $PORT_PID on port 3000..."
-              kill -9 $PORT_PID 2>/dev/null || true
-              sleep 2
+
+            # Method 1: lsof
+            PORT_PIDS=$(lsof -ti:3000 2>/dev/null || true)
+            if [ ! -z "$PORT_PIDS" ]; then
+              echo "💀 Killing PIDs from lsof: $PORT_PIDS"
+              echo "$PORT_PIDS" | xargs -r kill -9 2>/dev/null || true
             fi
+
+            # Method 2: netstat + grep
+            NETSTAT_PIDS=$(netstat -tulpn 2>/dev/null | grep ":3000 " | awk '{print $7}' | cut -d/ -f1 | grep -v "^-$" | sort -u || true)
+            if [ ! -z "$NETSTAT_PIDS" ]; then
+              echo "💀 Killing PIDs from netstat: $NETSTAT_PIDS"
+              echo "$NETSTAT_PIDS" | xargs -r kill -9 2>/dev/null || true
+            fi
+
+            # Method 3: Kill all Node.js processes (nuclear option)
+            echo "💀 Nuclear option: killing all node processes for user $(whoami)..."
+            pkill -f "node.*server.js" 2>/dev/null || true
+            pkill -f "node.*3000" 2>/dev/null || true
+            pkill -9 -u $(whoami) node 2>/dev/null || true
+
+            sleep 3
 
             # Wait for port to be completely free
             sleep 3
 
-            # Verify port is free
+            # Verify port is free and try fallback if needed
             if lsof -i:3000 >/dev/null 2>&1; then
-              echo "❌ Port 3000 still in use after cleanup!"
-              lsof -i:3000
-              exit 1
+              echo "⚠️ Port 3000 still in use after aggressive cleanup!"
+              echo "🔍 What's still using port 3000:"
+              lsof -i:3000 || true
+              netstat -tulpn | grep :3000 || true
+
+              # Try fallback ports
+              for FALLBACK_PORT in 3001 3002 3003; do
+                if ! lsof -i:$FALLBACK_PORT >/dev/null 2>&1; then
+                  echo "✅ Using fallback port $FALLBACK_PORT"
+                  export PORT=$FALLBACK_PORT
+                  break
+                fi
+              done
+
+              # If no fallback port found, exit
+              if [ -z "$PORT" ] || [ "$PORT" = "3000" ]; then
+                echo "❌ No available ports found (3000-3003 all in use)!"
+                exit 1
+              fi
             else
               echo "✅ Port 3000 is now free"
+              export PORT=3000
             fi
+
+            echo "🎯 Will use port: $PORT"
 
             # Initialize PM2 for this user
             echo "🚀 Initializing fresh PM2 environment for $(whoami)..."
@@ -198,13 +237,13 @@ jobs:
             fi
 
             # Start with ecosystem configuration
-            echo "🚀 Starting $PM2_APP_NAME with ecosystem config..."
+            echo "🚀 Starting $PM2_APP_NAME with ecosystem config on port $PORT..."
 
             # Create logs directory
             mkdir -p logs
 
             # Start using ecosystem file for consistent configuration
-            pm2 start ecosystem.config.js
+            PORT=$PORT pm2 start ecosystem.config.js
 
             # Save configuration
             pm2 save
@@ -253,7 +292,7 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
-          envs: PM2_APP_NAME
+          envs: PM2_APP_NAME,PORT
           script: |
             # Wait a moment for app to start
             sleep 5
@@ -271,20 +310,24 @@ jobs:
             # Test endpoints
             echo "🧪 Testing API endpoints..."
 
+            # Determine the port to test (default to 3000 if not set)
+            TEST_PORT=${PORT:-3000}
+            echo "🎯 Testing on port: $TEST_PORT"
+
             # Test regular endpoint
-            if curl -s -f http://localhost:3000/api/tts/generate > /dev/null; then
-              echo "✅ Regular TTS endpoint working"
+            if curl -s -f http://localhost:$TEST_PORT/api/tts/generate > /dev/null; then
+              echo "✅ Regular TTS endpoint working on port $TEST_PORT"
             else
-              echo "⚠️  Regular TTS endpoint failed"
+              echo "⚠️  Regular TTS endpoint failed on port $TEST_PORT"
             fi
 
             # Test long text endpoint (the one that was failing)
-            if curl -s -f -X POST http://localhost:3000/api/tts/generate-long \
+            if curl -s -f -X POST http://localhost:$TEST_PORT/api/tts/generate-long \
               -H "Content-Type: application/json" \
               -d '{"text":"CI/CD test","language":"en-US","voice":"en-US-AriaNeural","voiceName":"Aria","gender":"female"}' > /dev/null; then
-              echo "✅ Long text TTS endpoint working"
+              echo "✅ Long text TTS endpoint working on port $TEST_PORT"
             else
-              echo "❌ Long text TTS endpoint failed"
+              echo "❌ Long text TTS endpoint failed on port $TEST_PORT"
               echo "📋 Recent logs:"
               pm2 logs "$PM2_APP_NAME" --lines 5 || true
             fi
