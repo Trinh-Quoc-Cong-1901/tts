@@ -9,7 +9,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-SERVER_IP="51.38.176.94"
+SERVER_IP="167.235.186.59"
 
 echo -e "${YELLOW}This script will:${NC}"
 echo "1. SSH to server and check port 3000 usage"
@@ -28,7 +28,7 @@ fi
 
 echo -e "${YELLOW}Connecting to server for emergency cleanup...${NC}"
 
-ssh root@$SERVER_IP << 'EOF'
+ssh -p 2222 root@$SERVER_IP << 'EOF'
     echo "🔍 Checking current processes on port 3000..."
     lsof -i :3000 || echo "No processes found on port 3000"
 
