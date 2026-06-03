@@ -75,7 +75,10 @@ ssh root@$SERVER_IP << 'EOF'
     echo ""
     echo "🚀 To restart the app manually, run:"
     echo "cd /var/www/CongDeploy/CICD/run/text-to-speech"
-    echo "pm2 start server.js --name tts-app"
+    echo "pm2 start ecosystem.config.js"
+    echo ""
+    echo "Or with manual config:"
+    echo "pm2 start server.js --name tts-app --mode fork --instances 1"
 
 EOF
 
