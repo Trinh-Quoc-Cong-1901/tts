@@ -96,6 +96,11 @@ jobs:
           script: |
             set -euo pipefail
 
+            # Set script timeout to prevent hanging
+            trap 'echo "❌ Deployment script timed out!"; exit 124' TERM
+            (sleep 300; echo "⏰ Deployment taking too long, sending timeout signal"; kill -TERM $$) &
+            TIMEOUT_PID=$!
+
             echo "🚀 Starting deployment for ${PROJECT_NAME}..."
             TMP_TAR="/tmp/${ARTIFACT_NAME}"
 
@@ -158,10 +163,23 @@ jobs:
             pm2 kill || true
             pm2 delete all || true
 
-            # PM2 already handled the cleanup, just verify and proceed
-            echo "✅ PM2 cleanup completed successfully"
+            # Force kill any remaining processes on port 3000
+            echo "🔍 Checking for processes on port 3000..."
+            PORT_PID=$(lsof -ti:3000 2>/dev/null || true)
+            if [ ! -z "$PORT_PID" ]; then
+              echo "💀 Force killing process $PORT_PID on port 3000..."
+              kill -9 $PORT_PID 2>/dev/null || true
+              sleep 2
+            fi
 
-            echo "✅ Port 3000 completely free"
+            # Verify port is free
+            if lsof -i:3000 >/dev/null 2>&1; then
+              echo "❌ Port 3000 still in use after cleanup!"
+              lsof -i:3000
+              exit 1
+            else
+              echo "✅ Port 3000 is now free"
+            fi
 
             # Initialize PM2 for this user
             echo "🚀 Initializing fresh PM2 environment for $(whoami)..."
@@ -170,11 +188,16 @@ jobs:
 
             # Start with explicit configuration
             echo "🚀 Starting $PM2_APP_NAME with explicit config..."
+
+            # Set PORT environment variable explicitly
+            export PORT=3000
+
             pm2 start server.js \
               --name "$PM2_APP_NAME" \
               --instances 1 \
               --max-memory-restart 500M \
-              --node-args="--max-old-space-size=1024"
+              --node-args="--max-old-space-size=1024" \
+              --env PORT=3000
 
             # Save configuration
             pm2 save
@@ -196,6 +219,9 @@ jobs:
             # Cleanup
             echo "🧹 Cleaning up..."
             rm -f "$TMP_TAR"
+
+            # Kill timeout process
+            kill $TIMEOUT_PID 2>/dev/null || true
 
             echo "🎉 Deployment completed successfully!"
 

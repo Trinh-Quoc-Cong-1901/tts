@@ -31,7 +31,8 @@
       "Bash(python3 *)",
       "Bash(pip3 install *)",
       "Bash(brew install *)",
-      "Bash(edge-tts --list-voices)"
+      "Bash(edge-tts --list-voices)",
+      "Bash(chmod +x *)"
     ]
   }
 }
