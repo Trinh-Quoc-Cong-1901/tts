@@ -96,9 +96,9 @@ jobs:
           script: |
             set -euo pipefail
 
-            # Set script timeout to prevent hanging
+            # Set script timeout to prevent hanging (8 minutes)
             trap 'echo "❌ Deployment script timed out!"; exit 124' TERM
-            (sleep 300; echo "⏰ Deployment taking too long, sending timeout signal"; kill -TERM $$) &
+            (sleep 480; echo "⏰ Deployment taking too long, sending timeout signal"; kill -TERM $$) &
             TIMEOUT_PID=$!
 
             echo "🚀 Starting deployment for ${PROJECT_NAME}..."
@@ -170,27 +170,43 @@ jobs:
             # Force kill any remaining processes on port 3000 (AGGRESSIVE CLEANUP)
             echo "🔍 Checking for processes on port 3000..."
 
-            # Method 1: lsof
-            PORT_PIDS=$(lsof -ti:3000 2>/dev/null || true)
+            # Method 1: lsof with timeout
+            echo "📍 Step 1: lsof cleanup..."
+            PORT_PIDS=$(timeout 15 lsof -ti:3000 2>/dev/null || true)
             if [ ! -z "$PORT_PIDS" ]; then
               echo "💀 Killing PIDs from lsof: $PORT_PIDS"
-              echo "$PORT_PIDS" | xargs -r kill -9 2>/dev/null || true
+              echo "$PORT_PIDS" | xargs -r timeout 10 kill -9 2>/dev/null || true
+            else
+              echo "✅ No processes found via lsof"
             fi
 
-            # Method 2: netstat + grep
-            NETSTAT_PIDS=$(netstat -tulpn 2>/dev/null | grep ":3000 " | awk '{print $7}' | cut -d/ -f1 | grep -v "^-$" | sort -u || true)
+            # Method 2: netstat + grep with timeout
+            echo "📍 Step 2: netstat cleanup..."
+            NETSTAT_PIDS=$(timeout 15 netstat -tulpn 2>/dev/null | grep ":3000 " | awk '{print $7}' | cut -d/ -f1 | grep -v "^-$" | sort -u || true)
             if [ ! -z "$NETSTAT_PIDS" ]; then
               echo "💀 Killing PIDs from netstat: $NETSTAT_PIDS"
-              echo "$NETSTAT_PIDS" | xargs -r kill -9 2>/dev/null || true
+              echo "$NETSTAT_PIDS" | xargs -r timeout 10 kill -9 2>/dev/null || true
+            else
+              echo "✅ No processes found via netstat"
             fi
 
-            # Method 3: Kill all Node.js processes (nuclear option)
-            echo "💀 Nuclear option: killing all node processes for user $(whoami)..."
-            pkill -f "node.*server.js" 2>/dev/null || true
-            pkill -f "node.*3000" 2>/dev/null || true
-            pkill -9 -u $(whoami) node 2>/dev/null || true
+            # Method 3: Kill specific Node.js processes with timeout
+            echo "📍 Step 3: targeted kill specific processes..."
+            timeout 20 pkill -f "node.*server.js" 2>/dev/null || echo "⚠️ pkill server.js timeout/failed"
+            timeout 20 pkill -f "node.*3000" 2>/dev/null || echo "⚠️ pkill 3000 timeout/failed"
+            timeout 20 pkill -f "PM2" 2>/dev/null || echo "⚠️ pkill PM2 timeout/failed"
 
-            sleep 3
+            echo "📍 Step 4: checking if nuclear option needed..."
+            # Only use nuclear option if others failed and port still occupied
+            if timeout 10 lsof -i:3000 >/dev/null 2>&1; then
+              echo "💀 Nuclear option: killing all user node processes..."
+              timeout 20 pkill -9 -u $(whoami) node 2>/dev/null || echo "⚠️ Nuclear option timeout/failed"
+            else
+              echo "✅ Port 3000 freed, skipping nuclear option"
+            fi
+
+            echo "📍 Step 5: final wait..."
+            sleep 2
 
             # Wait for port to be completely free
             sleep 3
